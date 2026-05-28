@@ -25,7 +25,7 @@ URL_JESSICA_PRO = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlM
 URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/edit?usp=sharing"
 
 # 📊 LINKS DE LEITURA DAS PLANILHAS CÓPIAS (DO APP)
-URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIZsCgNo/export?format=csv"
+URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIzsCgNo/export?format=csv"
 URL_TULIO_APP_CSV = "https://docs.google.com/spreadsheets/d/1iVgHYv58Aknbf0Pa1V2gENWtWZVzkkghdT7vV4nKxTE/export?format=csv"
 URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
 
@@ -199,7 +199,7 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS (CORRIGIDO CORRETAMENTE)
+# 🛠️ PARSER DE LINHAS
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
@@ -208,7 +208,7 @@ def processar_linha_acervo_original(linha_bruta):
 
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
 
-    linha_original = linha_original.replace('"', '')
+    linha_original = Self_clean = linha_original.replace('"', '')
     linha_original = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', linha_original, flags=re.IGNORECASE).strip()
     linha_original = re.sub(r'\s*-\s*sc\s*$', '', linha_original, flags=re.IGNORECASE).strip()
         
@@ -268,7 +268,6 @@ def processar_linha_acervo_original(linha_bruta):
     fuso_brasilia = dt.timezone(dt.timedelta(hours=-3))
     data_hoje = datetime.now(fuso_brasilia).strftime("%d/%m/%Y")
 
-    # CORREÇÃO DA VARIÁVEL: Modificado de 'artist' para 'artista' para evitar NameError
     return {
         "Status": "Pronto",
         "Música": musica, "Artista": artista, "Compositores": compositores,
@@ -317,6 +316,7 @@ if opcao == "🔍 Buscar no Acervo":
         
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("📊 Total no Site", f"{total_musicas} mscs")
+        col2.metric("🏝️ Som da Ilha", f"{total_sc}")
         col2.metric("🏝️ Som da Ilha", f"{total_sc}")
         col3.metric("🎙️ Banco Túlio", f"{total_tulio}")
         col4.metric("🎙️ Banco Jéssica", f"{total_jessica}")
@@ -448,7 +448,8 @@ elif opcao == "💿 Formatador de Acervo":
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email(destino_geral, df_filtrado_g, u_nome_g)
                     
-                    st.write("🔄 Sincronizando banco...")
+                    st.write("🔄 Aguardando sincronização com os servidores do Google...")
+                    time.sleep(2.5) # Pequena pausa estratégica para o Google atualizar o arquivo CSV
                     inicializar_acervos(forcar_recarga=True)
                     
                     st.success(f"🔥 Sucesso total! {itens_validos_g} músicas inéditas salvas na {destino_geral} por {u_nome_g}!")
@@ -501,7 +502,8 @@ elif opcao == "💿 Formatador de Acervo":
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email("Som da Ilha (Ponte)", df_filtrado_s, u_nome_s)
                     
-                    st.write("🔄 Sincronizando banco...")
+                    st.write("🔄 Aguardando sincronização com os servidores do Google...")
+                    time.sleep(2.5) # Pequena pausa estratégica para o Google atualizar o arquivo CSV
                     inicializar_acervos(forcar_recarga=True)
                     
                     st.success(f"🔥 Sucesso! {itens_validos_s} músicas inéditas cadastradas por {u_nome_s}!")
