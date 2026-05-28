@@ -25,7 +25,7 @@ URL_JESSICA_PRO = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlM
 URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/edit?usp=sharing"
 
 # 📊 LINKS DE LEITURA DAS PLANILHAS CÓPIAS (DO APP)
-URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIzsCgNo/export?format=csv"
+URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIZsCgNo/export?format=csv"
 URL_TULIO_APP_CSV = "https://docs.google.com/spreadsheets/d/1iVgHYv58Aknbf0Pa1V2gENWtWZVzkkghdT7vV4nKxTE/export?format=csv"
 URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
 
@@ -102,7 +102,6 @@ def puxar_dados_do_google(url, nome_acervo):
         
         resposta = requests.get(url_dinamica, timeout=10)
         if resposta.status_code != 200 or "html" in resposta.headers.get('Content-Type', '').lower():
-            st.sidebar.warning(f"⚠️ Planilha '{nome_acervo}' está privada ou inacessível no Google Drive.")
             return pd.DataFrame()
 
         df = pd.read_csv(url_dinamica, sep=',', on_bad_lines='skip', encoding='utf-8')
@@ -135,8 +134,8 @@ def puxar_dados_do_google(url, nome_acervo):
             df.columns = novas_colunas
             df["Acervo Origem"] = nome_acervo
             return df
-    except Exception as e:
-        st.sidebar.error(f"Erro ao carregar {nome_acervo}: {str(e)[:50]}")
+    except:
+        pass
     return pd.DataFrame()
 
 def inicializar_acervos(forcar_recarga=False):
@@ -200,18 +199,18 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS
+# 🛠️ PARSER DE LINHAS (TOTALMENTE LIMPO)
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
-    if not Server_original := linha_original:
+    if not linha_original:
         return None
 
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
 
     linha_original = linha_original.replace('"', '')
     linha_original = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', linha_original, flags=re.IGNORECASE).strip()
-    linha_original = re.sub(r'\s*-\s*sc\s*$', '', App = linha_original, flags=re.IGNORECASE).strip()
+    linha_original = re.sub(r'\s*-\s*sc\s*$', '', linha_original, flags=re.IGNORECASE).strip()
         
     if "\\" in linha_original:
         linha_trabalho = linha_original.split("\\")[-1]
@@ -270,6 +269,7 @@ def processar_linha_acervo_original(linha_bruta):
     data_hoje = datetime.now(fuso_brasilia).strftime("%d/%m/%Y")
 
     return {
+        "Status": "Pronto",
         "Música": musica, "Artista": artista, "Compositores": compositores,
         "Formato": formato, "Ano": ano, "Origem": "", "Gênero": "", "Gênero Relacionado": "",
         "Est/Idioma": "SC" if eh_sc else "", "Classificação": "", "Andamento": "",
@@ -380,10 +380,21 @@ elif opcao == "💿 Formatador de Acervo":
             lista_geral = []
             lista_sc = []
             
+            # Puxa a lista de nomes que já existem no banco unificado para comparar
+            arquivos_existentes = set()
+            if "banco_completo" in st.session_state and not st.session_state["banco_completo"].empty:
+                arquivos_existentes = set(st.session_state["banco_completo"]["Nome do Arquivo"].astype(str).str.lower().str.strip())
+
             for line in linhas:
                 res = processar_linha_acervo_original(line)
                 if res:
                     eh_sc = res.pop("eh_sc", False)
+                    nome_arq_check = str(res["Nome do Arquivo"]).lower().strip()
+                    
+                    # Validação de Duplicidade
+                    if nome_arq_check in arquivos_existentes:
+                        res["Status"] = "⚠️ JÁ CADASTRADA"
+                    
                     if eh_sc:
                         lista_sc.append(res)
                     else:
@@ -393,28 +404,36 @@ elif opcao == "💿 Formatador de Acervo":
             st.session_state["lote_sc_atual"] = pd.DataFrame(lista_sc) if lista_sc else pd.DataFrame()
             st.balloons()
 
-    # --- TRAVA DE SEGURANÇA: LOTE GERAL ---
+    # --- LOTE GERAL ---
     if "lote_geral_atual" in st.session_state and not st.session_state["lote_geral_atual"].empty:
         st.success("🎉 Lote GERAL formatado com sucesso:")
         df_editado_g = st.data_editor(st.session_state["lote_geral_atual"], use_container_width=True, key="edit_g_real")
         st.session_state["lote_geral_atual"] = df_editado_g
         
-        with st.expander("📥 SALVAR NO BANCO DE DADOS (Geral)", expanded=True):
+        with St_expander := st.expander("📥 SALVAR NO BANCO DE DADOS (Geral)", expanded=True):
             u_nome_g = st.text_input("Seu Nome (Identificação Obrigatória):", key="usr_g").strip()
             destino_geral = st.selectbox("Escolha a planilha destino:", ["Selecione o Destino Correto...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"])
             
-            # Condição para ativar ou desativar o botão
-            validar_g = bool(u_nome_g) and destino_geral != "Selecione o Destino Correto..."
+            # Filtra apenas as inéditas para envio
+            df_filtrado_g = df_editado_g[df_editado_g["Status"] != "⚠️ JÁ CADASTRADA"]
+            itens_validos_g = len(df_filtrado_g)
+            itens_repetidos_g = len(df_editado_g) - itens_validos_g
             
-            if not validar_g:
-                st.error("⚠️ Digite seu nome e escolha uma planilha destino para liberar o botão de salvamento.")
+            if itens_repetidos_g > 0:
+                st.warning(f"📢 Atenção: {itens_repetidos_g} música(s) repetida(s) detectada(s). Elas serão ignoradas no salvamento.")
+
+            validar_g = bool(u_nome_g) and destino_geral != "Selecione o Destino Correto..." and itens_validos_g > 0
+            
+            if not u_nome_g or destino_geral == "Selecione o Destino Correto...":
+                st.error("⚠️ Digite seu nome e escolha uma planilha destino para liberar o salvamento.")
+            elif itens_validos_g == 0:
+                st.error("❌ Todas as músicas deste bloco já constam no acervo! Nada a enviar.")
             
             if st.button("Gravar Lote Geral nas Nuvens 💾", key="save_g_btn", disabled=not validar_g):
                 url_webhook = WEBHOOK_TULIO if "Túlio" in destino_geral else WEBHOOK_JESSICA
-                total_g = len(df_editado_g)
                 
                 pacote_lote = []
-                for _, r in df_editado_g.iterrows():
+                for _, r in df_filtrado_g.iterrows():
                     pacote_lote.append({
                         "musica": str(r["Música"]), "artista": str(r["Artista"]), "compositores": str(r["Compositores"]),
                         "formato": str(r["Formato"]), "ano": str(r["Ano"]), "origem": str(r["Origem"]),
@@ -424,24 +443,24 @@ elif opcao == "💿 Formatador de Acervo":
                         "participacoes": str(r["Participações"]), "nome_arquivo": str(r["Nome do Arquivo"])
                     })
                 
-                with st.spinner(f"🚀 Despachando lote completo de {total_g} músicas por {u_nome_g}..."):
+                with st.spinner(f"🚀 Despachando {itens_validos_g} músicas novas por {u_nome_g}..."):
                     sucesso, motivo = enviar_lote_completo_google(url_webhook, pacote_lote)
                 
                 if sucesso:
                     st.write("📧 Enviando e-mail de notificação...")
-                    enviar_notificacao_email(destino_geral, df_editado_g, u_nome_g)
+                    enviar_notificacao_email(destino_geral, df_filtrado_g, u_nome_g)
                     
                     st.write("🔄 Sincronizando banco...")
                     inicializar_acervos(forcar_recarga=True)
                     
-                    st.success(f"🔥 Sucesso total! As {total_g} músicas foram salvas na {destino_geral} por {u_nome_g}!")
+                    st.success(f"🔥 Sucesso total! {itens_validos_g} músicas inéditas salvas na {destino_geral} por {u_nome_g}!")
                     st.session_state["lote_geral_atual"] = pd.DataFrame()
                     time.sleep(1.0)
                     st.rerun()
                 else:
                     st.error(f"❌ Falha no envio em bloco: {motivo}")
 
-    # --- TRAVA DE SEGURANÇA: LOTE SOM DA ILHA ---
+    # --- LOTE SOM DA ILHA ---
     if "lote_sc_atual" in st.session_state and not st.session_state["lote_sc_atual"].empty:
         st.warning("🏝️ Lote SOM DA ILHA (Catarinenses) formatado:")
         df_editado_s = st.data_editor(st.session_state["lote_sc_atual"], use_container_width=True, key="edit_s_real")
@@ -449,19 +468,25 @@ elif opcao == "💿 Formatador de Acervo":
         
         with st.expander("📥 SALVAR NO BANCO DE DADOS (Som da Ilha Ponte)", expanded=True):
             u_nome_s = st.text_input("Seu Nome (Identificação Obrigatória):", key="usr_s").strip()
-            confirmacao_s = st.checkbox("Confirmo que este lote pertence exclusivamente ao Som da Ilha (SC)")
+            confirmacao_s = st.checkbox("Confirmo que este lote pertence ao Som da Ilha")
             
-            # Condição para ativar ou desativar o botão do Som da Ilha
-            validar_s = bool(u_nome_s) and confirmacao_s
+            df_filtrado_s = df_editado_s[df_editado_s["Status"] != "⚠️ JÁ CADASTRADA"]
+            itens_validos_s = len(df_filtrado_s)
+            itens_repetidos_s = len(df_editado_s) - itens_validos_s
             
-            if not validar_s:
-                st.error("⚠️ Insira seu nome e marque a caixa de confirmação acima para liberar o salvamento no banco Catarinense.")
+            if itens_repetidos_s > 0:
+                st.warning(f"📢 Atenção: {itens_repetidos_s} música(s) repetida(s) detectada(s). Elas serão ignoradas no salvamento.")
+
+            validar_s = bool(u_nome_s) and confirmacao_s and itens_validos_s > 0
+            
+            if not u_nome_s or not confirmacao_s:
+                st.error("⚠️ Insira seu nome e marque a confirmação para liberar o salvamento.")
+            elif itens_validos_s == 0:
+                st.error("❌ Todas as músicas de SC deste bloco já constam no acervo!")
                 
             if st.button("Gravar Lote Som da Ilha nas Nuvens 💾", key="save_s_btn", disabled=not validar_s):
-                total_s = len(df_editado_s)
-                
                 pacote_lote_s = []
-                for _, r in df_editado_s.iterrows():
+                for _, r in df_filtrado_s.iterrows():
                     pacote_lote_s.append({
                         "musica": str(r["Música"]), "artista": str(r["Artista"]), "compositores": str(r["Compositores"]),
                         "formato": str(r["Formato"]), "ano": str(r["Ano"]), "origem": str(r["Origem"]),
@@ -471,17 +496,17 @@ elif opcao == "💿 Formatador de Acervo":
                         "participacoes": str(r["Participações"]), "nome_arquivo": str(r["Nome do Arquivo"])
                     })
                 
-                with st.spinner(f"🚀 Despachando lote Som da Ilha por {u_nome_s}..."):
+                with st.spinner(f"🚀 Despachando {itens_validos_s} músicas novas por {u_nome_s}..."):
                     sucesso, motivo = enviar_lote_completo_google(WEBHOOK_SOM_DA_ILHA, pacote_lote_s)
                             
                 if sucesso:
                     st.write("📧 Enviando e-mail de notificação...")
-                    enviar_notificacao_email("Som da Ilha (Ponte)", df_editado_s, u_nome_s)
+                    enviar_notificacao_email("Som da Ilha (Ponte)", df_filtrado_s, u_nome_s)
                     
                     st.write("🔄 Sincronizando banco...")
                     inicializar_acervos(forcar_recarga=True)
                     
-                    st.success(f"🔥 Sucesso! {total_s} músicas cadastradas no Som da Ilha por {u_nome_s}!")
+                    st.success(f"🔥 Sucesso! {itens_validos_s} músicas inéditas cadastradas por {u_nome_s}!")
                     st.session_state["lote_sc_atual"] = pd.DataFrame()
                     time.sleep(1.0)
                     st.rerun()
