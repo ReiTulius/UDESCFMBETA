@@ -25,7 +25,7 @@ URL_JESSICA_PRO = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlM
 URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/edit?usp=sharing"
 
 # 📊 LINKS DE LEITURA DAS PLANILHAS CÓPIAS (DO APP)
-URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIZsCgNo/export?format=csv"
+URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIzsCgNo/export?format=csv"
 URL_TULIO_APP_CSV = "https://docs.google.com/spreadsheets/d/1iVgHYv58Aknbf0Pa1V2gENWtWZVzkkghdT7vV4nKxTE/export?format=csv"
 URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
 
@@ -199,7 +199,7 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS (TOTALMENTE LIMPO)
+# 🛠️ PARSER DE LINHAS (TOTALMENTE CORRIGIDO)
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
@@ -380,7 +380,6 @@ elif opcao == "💿 Formatador de Acervo":
             lista_geral = []
             lista_sc = []
             
-            # Puxa a lista de nomes que já existem no banco unificado para comparar
             arquivos_existentes = set()
             if "banco_completo" in st.session_state and not st.session_state["banco_completo"].empty:
                 arquivos_existentes = set(st.session_state["banco_completo"]["Nome do Arquivo"].astype(str).str.lower().str.strip())
@@ -391,7 +390,6 @@ elif opcao == "💿 Formatador de Acervo":
                     eh_sc = res.pop("eh_sc", False)
                     nome_arq_check = str(res["Nome do Arquivo"]).lower().strip()
                     
-                    # Validação de Duplicidade
                     if nome_arq_check in arquivos_existentes:
                         res["Status"] = "⚠️ JÁ CADASTRADA"
                     
@@ -410,17 +408,16 @@ elif opcao == "💿 Formatador de Acervo":
         df_editado_g = st.data_editor(st.session_state["lote_geral_atual"], use_container_width=True, key="edit_g_real")
         st.session_state["lote_geral_atual"] = df_editado_g
         
-        with St_expander := st.expander("📥 SALVAR NO BANCO DE DADOS (Geral)", expanded=True):
+        with st.expander("📥 SALVAR NO BANCO DE DADOS (Geral)", expanded=True):
             u_nome_g = st.text_input("Seu Nome (Identificação Obrigatória):", key="usr_g").strip()
             destino_geral = st.selectbox("Escolha a planilha destino:", ["Selecione o Destino Correto...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"])
             
-            # Filtra apenas as inéditas para envio
             df_filtrado_g = df_editado_g[df_editado_g["Status"] != "⚠️ JÁ CADASTRADA"]
             itens_validos_g = len(df_filtrado_g)
             itens_repetidos_g = len(df_editado_g) - itens_validos_g
             
             if itens_repetidos_g > 0:
-                st.warning(f"📢 Atenção: {itens_repetidos_g} música(s) repetida(s) detectada(s). Elas serão ignoradas no salvamento.")
+                st.warning(f"📢 Atenção: {itens_repetidos_g} música(s) já cadastrada(s) detectada(s). Elas serão ignoradas automaticamente para evitar duplicidade.")
 
             validar_g = bool(u_nome_g) and destino_geral != "Selecione o Destino Correto..." and itens_validos_g > 0
             
@@ -475,7 +472,7 @@ elif opcao == "💿 Formatador de Acervo":
             itens_repetidos_s = len(df_editado_s) - itens_validos_s
             
             if itens_repetidos_s > 0:
-                st.warning(f"📢 Atenção: {itens_repetidos_s} música(s) repetida(s) detectada(s). Elas serão ignoradas no salvamento.")
+                st.warning(f"📢 Atenção: {itens_repetidos_s} música(s) já cadastrada(s) detectada(s). Elas serão ignoradas no salvamento.")
 
             validar_s = bool(u_nome_s) and confirmacao_s and itens_validos_s > 0
             
