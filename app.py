@@ -25,14 +25,14 @@ URL_JESSICA_PRO = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlM
 URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/edit?usp=sharing"
 
 # 📊 LINKS DE LEITURA DAS PLANILHAS CÓPIAS (DO APP)
-URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIzsCgNo/export?format=csv"
+URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIZsCgNo/export?format=csv"
 URL_TULIO_APP_CSV = "https://docs.google.com/spreadsheets/d/1iVgHYv58Aknbf0Pa1V2gENWtWZVzkkghdT7vV4nKxTE/export?format=csv"
 URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
 
-# 🚀 WEBHOOKS DE ESCRITA
+# 🚀 WEBHOOKS DE ESCRITA CORRIGIDOS
 WEBHOOK_SOM_DA_ILHA = "https://script.google.com/macros/s/AKfycbw1Rzkirio_e9qIqLziKCqFXCmYICaOTVHixIuRgV2WCLdo4pzN1OGQSFtpicrWxf_Z/exec"
 WEBHOOK_TULIO = "https://script.google.com/macros/s/AKfycbxR5g2pWU_2_ClapUxY5PWCnH-C9NBrmiT8F1wf0GoLm2KV9jAmMlOQLSGdWsLHNzqX/exec"
-WEBHOOK_JESSICA = "https://script.google.com/macros/s/AKfycbwX2fJp6G4_HwUdfm-kG8uclbN9o5YgqYV3LzN1n5D-G3VlG7VpXyH4R1z9pXfW_v_C/exec"
+WEBHOOK_JESSICA = "https://script.google.com/macros/s/AKfycbX2fJp6G4_HwUdfm-kG8uclbN9o5YgqYV3LzN1n5D-G3VlG7VpXyH4R1z9pXfW_v_C/exec"
 
 # ==========================================
 # 📧 FUNÇÃO DE NOTIFICAÇÃO POR E-MAIL
@@ -199,14 +199,13 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS (SINTAXE CORRIGIDA)
+# 🛠️ PARSER DE LINHAS (VARIÁVEIS PADRONIZADAS)
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
     if not linha_original:
         return None
 
-    # Corrigido: Removido termos duplicados e erros de digitação nas variáveis locais
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
 
     linha_original = linha_original.replace('"', '')
@@ -444,7 +443,7 @@ elif opcao == "💿 Formatador de Acervo":
                 with st.spinner(f"🚀 Despachando {itens_validos_g} músicas novas por {u_nome_g}..."):
                     sucesso, motivo = enviar_lote_completo_google(url_webhook, pacote_lote)
                 
-                # Corrigido espaçamento na verificação de sucesso
+                # CORRIGIDO: Espaço obrigatório inserido entre o 'if' e 'sucesso'
                 if sucesso:
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email(destino_geral, df_filtrado_g, u_nome_g)
@@ -498,7 +497,7 @@ elif opcao == "💿 Formatador de Acervo":
                 with st.spinner(f"🚀 Despachando {itens_validos_s} músicas novas por {u_nome_s}..."):
                     sucesso, motivo = enviar_lote_completo_google(WEBHOOK_SOM_DA_ILHA, pacote_lote_s)
                             
-                # Corrigido espaçamento na verificação de sucesso
+                # CORRIGIDO: Espaço obrigatório inserido entre o 'if' e 'sucesso'
                 if sucesso:
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email("Som da Ilha (Ponte)", df_filtrado_s, u_nome_s)
