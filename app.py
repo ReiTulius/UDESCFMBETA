@@ -25,7 +25,7 @@ URL_JESSICA_PRO = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlM
 URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/edit?usp=sharing"
 
 # 📊 LINKS DE LEITURA DAS PLANILHAS CÓPIAS (DO APP)
-URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIZsCgNo/export?format=csv"
+URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIzsCgNo/export?format=csv"
 URL_TULIO_APP_CSV = "https://docs.google.com/spreadsheets/d/1iVgHYv58Aknbf0Pa1V2gENWtWZVzkkghdT7vV4nKxTE/export?format=csv"
 URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
 
@@ -52,7 +52,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         linhas_musicas = []
         for _, linha in df_novas.iterrows():
             nome_arq = linha.get('Nome do Arquivo', '')
-            if not nome_arq and 'Música' in linha:
+            if not nome_arq and 'Música' in Server_clean:
                 nome_arq = f"{linha.get('Artista', 'Desconhecido')} - {linha.get('Música', 'Sem Nome')}"
             linhas_musicas.append(f"• {nome_arq}.mp3")
         lista_texto = "\n".join(linhas_musicas)
@@ -97,15 +97,15 @@ def puxar_dados_do_google(url, nome_acervo):
         else:
             url_base = url
 
-        # Quebra de cache robusta para o Google Sheets atualizar instantaneamente
+        # Forçador de cache dinâmico robusto por microssegundos
         conector = "&" if "?" in url_base else "?"
-        url_dinamica = f"{url_base}{conector}cachebuster={int(time.time())}"
+        url_dinamica = f"{url_base}{conector}cachebuster={int(time.time() * 1000)}"
         
-        resposta = requests.get(url_dinamica, timeout=10)
+        resposta = requests.get(url_dinamica, timeout=12)
         if resposta.status_code != 200 or "html" in resposta.headers.get('Content-Type', '').lower():
             return pd.DataFrame()
 
-        df = pd.read_csv(url_dinamica, sep=',', on_bad_lines='skip', encoding='utf-8')
+        df = pd.read_csv(resposta.url, sep=',', on_bad_lines='skip', encoding='utf-8')
         
         if not df.empty:
             df.dropna(how='all', inplace=True)
@@ -210,11 +210,11 @@ def processar_linha_acervo_original(linha_bruta):
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
 
     linha_original = linha_original.replace('"', '')
-    linha_original = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', Server_clean := linha_original, flags=re.IGNORECASE).strip()
+    linha_original = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', linha_original, flags=re.IGNORECASE).strip()
     linha_original = re.sub(r'\s*-\s*sc\s*$', '', linha_original, flags=re.IGNORECASE).strip()
         
     if "\\" in linha_original:
-        linha_trabalho = App_clean = linha_original.split("\\")[-1]
+        linha_trabalho = linha_original.split("\\")[-1]
     else:
         linha_trabalho = linha_original
 
@@ -315,7 +315,6 @@ if opcao == "🔍 Buscar no Acervo":
         total_tulio = len(df_total[df_total["Acervo Origem"] == "Túlio"])
         total_jessica = len(df_total[df_total["Acervo Origem"] == "Jéssica"])
         
-        # Correção aqui: removida a duplicata do Som da Ilha
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("📊 Total no Site", f"{total_musicas} mscs")
         col2.metric("🏝️ Som da Ilha", f"{total_sc}")
@@ -449,8 +448,8 @@ elif opcao == "💿 Formatador de Acervo":
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email(destino_geral, df_filtrado_g, u_nome_g)
                     
-                    st.write("🔄 Sincronizando e atualizando cache do Google...")
-                    time.sleep(3.0)  # Tempo essencial para o Google concluir a escrita
+                    st.write("🔄 Atualizando cache e limpando registros...")
+                    time.sleep(3.5)  # Intervalo de segurança estendido para processamento na nuvem
                     inicializar_acervos(forcar_recarga=True)
                     
                     st.success(f"🔥 Sucesso total! {itens_validos_g} músicas inéditas salvas na {destino_geral} por {u_nome_g}!")
@@ -503,8 +502,8 @@ elif opcao == "💿 Formatador de Acervo":
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email("Som da Ilha (Ponte)", df_filtrado_s, u_nome_s)
                     
-                    st.write("🔄 Sincronizando e atualizando cache do Google...")
-                    time.sleep(3.0)
+                    st.write("🔄 Atualizando cache e limpando registros...")
+                    time.sleep(3.5)
                     inicializar_acervos(forcar_recarga=True)
                     
                     st.success(f"🔥 Sucesso! {itens_validos_s} músicas inéditas cadastradas por {u_nome_s}!")
