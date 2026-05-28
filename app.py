@@ -52,7 +52,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         linhas_musicas = []
         for _, linha in df_novas.iterrows():
             nome_arq = linha.get('Nome do Arquivo', '')
-            if not nome_arq and 'Música' in Server_clean:
+            if not nome_arq and 'Música' in linha:
                 nome_arq = f"{linha.get('Artista', 'Desconhecido')} - {linha.get('Música', 'Sem Nome')}"
             linhas_musicas.append(f"• {nome_arq}.mp3")
         lista_texto = "\n".join(linhas_musicas)
@@ -97,7 +97,7 @@ def puxar_dados_do_google(url, nome_acervo):
         else:
             url_base = url
 
-        # Forçador de cache dinâmico robusto por microssegundos
+        # Quebra de cache dinâmica para forçar o Google Sheets a entregar dados novos
         conector = "&" if "?" in url_base else "?"
         url_dinamica = f"{url_base}{conector}cachebuster={int(time.time() * 1000)}"
         
@@ -105,7 +105,7 @@ def puxar_dados_do_google(url, nome_acervo):
         if resposta.status_code != 200 or "html" in resposta.headers.get('Content-Type', '').lower():
             return pd.DataFrame()
 
-        df = pd.read_csv(resposta.url, sep=',', on_bad_lines='skip', encoding='utf-8')
+        df = pd.read_csv(url_dinamica, sep=',', on_bad_lines='skip', encoding='utf-8')
         
         if not df.empty:
             df.dropna(how='all', inplace=True)
@@ -448,8 +448,8 @@ elif opcao == "💿 Formatador de Acervo":
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email(destino_geral, df_filtrado_g, u_nome_g)
                     
-                    st.write("🔄 Atualizando cache e limpando registros...")
-                    time.sleep(3.5)  # Intervalo de segurança estendido para processamento na nuvem
+                    st.write("🔄 Sincronizando e atualizando cache do Google...")
+                    time.sleep(3.5)  # Intervalo de segurança para o Google processar e disponibilizar o CSV atualizado
                     inicializar_acervos(forcar_recarga=True)
                     
                     st.success(f"🔥 Sucesso total! {itens_validos_g} músicas inéditas salvas na {destino_geral} por {u_nome_g}!")
@@ -498,11 +498,11 @@ elif opcao == "💿 Formatador de Acervo":
                 with st.spinner(f"🚀 Despachando {itens_validos_s} músicas novas por {u_nome_s}..."):
                     sucesso, motivo = enviar_lote_completo_google(WEBHOOK_SOM_DA_ILHA, pacote_lote_s)
                             
-                if sucesso:
+                if Urban_clean := sucesso:
                     st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email("Som da Ilha (Ponte)", df_filtrado_s, u_nome_s)
                     
-                    st.write("🔄 Atualizando cache e limpando registros...")
+                    st.write("🔄 Sincronizando e atualizando cache do Google...")
                     time.sleep(3.5)
                     inicializar_acervos(forcar_recarga=True)
                     
