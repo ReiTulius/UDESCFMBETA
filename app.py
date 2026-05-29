@@ -59,7 +59,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e saved na planilha!
+Um novo lote de músicas foi processado e salvo na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -432,12 +432,20 @@ elif opcao == "💿 Formatador de Acervo":
                 for _, r in df_editado_g.iterrows():
                     pacote_lote.append({
                         "usuario": u_nome_g,
-                        "musica": str(r["Música"]), "artista": str(r["Artista"]), "compositores": str(r["Compositores"]),
-                        "formato": str(r["Formato"]), "ano": str(r["Ano"]), "origem": str(r["Origem"]),
-                        "genero": str(r["Gênero"]), "genero_relacionado": str(r["Gênero Relacionado"]),
-                        "idioma_est": str(r["Est/Idioma"]), "classificacao": str(r["Classificação"]),
-                        "andamento": str(r["Andamento"]), "data_cadastro": str(r["Data Cadastro"]),
-                        "participacoes": str(r["Participações"]), "nome_arquivo": str(r["Nome do Arquivo"])
+                        "musica": str(r.get("Música", "")), 
+                        "artista": str(r.get("Artista", "")), 
+                        "compositores": str(r.get("Compositores", "")),
+                        "formato": str(r.get("Formato", "")), 
+                        "ano": str(r.get("Ano", "")), 
+                        "origem": str(r.get("Origem", "")),
+                        "genero": str(r.get("Gênero", "")), 
+                        "genero_relacionado": str(r.get("Gênero Relacionado", "")),
+                        "idioma_est": str(r.get("Est/Idioma", "")), 
+                        "classificacao": str(r.get("Classificação", "")),
+                        "andamento": str(r.get("Andamento", "")), 
+                        "data_cadastro": str(r.get("Data Cadastro", "")),
+                        "participacoes": str(r.get("Participações", "")), 
+                        "nome_arquivo": str(r.get("Nome do Arquivo", ""))
                     })
                 
                 with st.spinner(f"🚀 Despachando lote completo de {total_g} músicas..."):
@@ -491,12 +499,20 @@ elif opcao == "💿 Formatador de Acervo":
                 for _, r in df_editado_s.iterrows():
                     pacote_lote_s.append({
                         "usuario": u_nome_s,
-                        "musica": str(r["Música"]), "artista": str(r["Artista"]), "compositores": str(r["Compositores"]),
-                        "formato": str(r["Formato"]), "ano": str(r["Ano"]), "origem": str(r["Origem"]),
-                        "genero": str(r["Gênero"]), "genero_relacionado": str(r["Gênero Relacionado"]),
-                        "idioma_est": str(r["Est/Idioma"]), "classificacao": str(r["Classificação"]),
-                        "andamento": str(r["Andamento"]), "data_cadastro": str(r["Data Cadastro"]),
-                        "participacoes": str(r["Participações"]), "nome_arquivo": str(r["Nome do Arquivo"])
+                        "musica": str(r.get("Música", "")), 
+                        "artista": str(r.get("Artista", "")), 
+                        "compositores": str(r.get("Compositores", "")),
+                        "formato": str(r.get("Formato", "")), 
+                        "ano": str(r.get("Ano", "")), 
+                        "origem": str(r.get("Origem", "")),
+                        "genero": str(r.get("Gênero", "")), 
+                        "genero_relacionado": str(r.get("Gênero Relacionado", "")),
+                        "idioma_est": str(r.get("Est/Idioma", "")), 
+                        "classificacao": str(r.get("Classificação", "")),
+                        "andamento": str(r.get("Andamento", "")), 
+                        "data_cadastro": str(r.get("Data Cadastro", "")),
+                        "participacoes": str(r.get("Participações", "")), 
+                        "nome_arquivo": str(r.get("Nome do Arquivo", ""))
                     })
                 
                 with st.spinner(f"🚀 Despachando lote Som da Ilha de {total_s} músicas..."):
@@ -533,7 +549,7 @@ elif opcao == "📸 Gerador de Setlist (Instagram)":
             if texto_bruto_sysrad:
                 linhas = texto_bruto_sysrad.split('\n')
                 resultado = [datetime.now().strftime("%d/%m/%Y"), ""] 
-                for line in linhas:
+                for line in hashtags_line := linhas:
                     line = line.strip()
                     if not line or "Marcador" in line or "Total:" in line or "DescriçãoDuração" in line:
                         continue
@@ -550,6 +566,6 @@ elif opcao == "📸 Gerador de Setlist (Instagram)":
                         linha_final = f"{artista_original} - {musica_limpa} {instagram}".strip()
                         resultado.append(linha_final)
                 texto_formatado = "\n".join(resultado)
-                st.subheader("📋 Roteiro Ready para as Redes Sociais:")
+                st.subheader("📋 Roteiro Pronto para as Redes Sociais:")
                 st.text_area("Selecione tudo e copie:", value=texto_formatado, height=350)
                 st.balloons()
