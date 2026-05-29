@@ -14,6 +14,45 @@ import datetime as dt
 # ==========================================
 st.set_page_config(page_title="Acervo Oficial Integrado - Udesc FM", page_icon="📻", layout="wide")
 
+# --- INJEÇÃO DE CSS (DESIGN MODERNO) ---
+def injetar_css():
+    st.markdown("""
+    <style>
+        /* Ocultar menu superior e rodapé padrão do Streamlit para visual mais limpo */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* Estilizar os cards de métricas (caixas de números) */
+        div[data-testid="metric-container"] {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.05);
+            border-left: 5px solid #ff4b4b; /* Detalhe colorido na lateral */
+        }
+        
+        /* Melhorar o visual dos botões */
+        .stButton>button {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        /* Suavizar os contornos das tabelas e inputs */
+        div[data-baseweb="input"] > div {
+            border-radius: 8px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+injetar_css()
+
 EMAIL_ROBO_REMETENTE = "heytuliusradio@gmail.com"
 SENHA_ROBO_REMETENTE = "nvfxdrlzpkzbugao"
 EMAIL_DESTINATARIO_OFICIAL = "heytuliusmusic@gmail.com"
@@ -32,7 +71,6 @@ URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBT
 # 🚀 WEBHOOKS DE ESCRITA (LOTE COMPLETO)
 WEBHOOK_SOM_DA_ILHA = "https://script.google.com/macros/s/AKfycbw1Rzkirio_e9qIqLziKCqFXCmYICaOTVHixIuRgV2WCLdo4pzN1OGQSFtpicrWxf_Z/exec"
 WEBHOOK_TULIO = "https://script.google.com/macros/s/AKfycbxR5g2pWU_2_ClapUxY5PWCnH-C9NBrmiT8F1wf0GoLm2KV9jAmMlOQLSGdWsLHNzqX/exec"
-# URL DA JÉSSICA CORRIGIDA (ESTAVA FALTANDO O 'w' NO CÓDIGO BACKUP)
 WEBHOOK_JESSICA = "https://script.google.com/macros/s/AKfycbwGif0xdjbzvo82mvG1CnrKwt8jvp-OWwHCFv3_FTQNJtGxT7m15hZGeO3k7ryWl3E9uQ/exec"
 
 # ==========================================
@@ -290,23 +328,29 @@ def enviar_lote_completo_google(url, pacote_json):
         return False, f"Falha crítica de conexão: {str(e)}"
 
 # --- INTERFACE DE NAVEGAÇÃO ---
-st.sidebar.title("Painel de Controle")
-if st.sidebar.button("🔄 Forçar Sincronização Completa", use_container_width=True):
-    inicializar_acervos(forcar_recarga=True)
-    st.rerun()
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/1256/1256086.png", width=60) # Ícone simpático de rádio
+    st.title("Painel Udesc FM")
+    st.markdown("---")
+    
+    if st.button("🔄 Sincronizar Agora", use_container_width=True, help="Força a atualização dos dados das planilhas"):
+        inicializar_acervos(forcar_recarga=True)
+        st.rerun()
 
-opcao = st.sidebar.radio(
-    "Navegar para:",
-    ["🔍 Buscar no Acervo", "📂 Ver Todo o Acervo", "💿 Formatador de Acervo", "📸 Gerador de Setlist (Instagram)"]
-)
-st.sidebar.markdown("---")
-st.sidebar.caption("Udesc FM 🎧")
+    opcao = st.radio(
+        "Navegação Rápida:",
+        ["🔍 Buscar no Acervo", "📂 Ver Todo o Acervo", "💿 Formatador de Acervo", "📸 Gerador de Setlist"]
+    )
+    st.markdown("---")
+    st.caption("v1.1 Beta • Sistema Integrado")
 
 # ==========================================
 # 🔍 ABA: BUSCAR NO ACERVO
 # ==========================================
 if opcao == "🔍 Buscar no Acervo":
-    st.title("🔍 Acervo Oficial Integrado - Udesc FM")
+    st.title("📻 Acervo Oficial Integrado")
+    st.markdown("Bem-vindo ao sistema de busca e gestão musical da Udesc FM.")
+    
     df_total = st.session_state["banco_completo"]
     
     if not df_total.empty:
@@ -315,16 +359,16 @@ if opcao == "🔍 Buscar no Acervo":
         total_tulio = len(df_total[df_total["Acervo Origem"] == "Túlio"])
         total_jessica = len(df_total[df_total["Acervo Origem"] == "Jéssica"])
         
+        # Uso do layout moderno para métricas
+        st.markdown("<br>", unsafe_allow_html=True)
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("📊 Total no Site", f"{total_musicas} mscs")
+        col1.metric("📊 Total de Músicas", f"{total_musicas}")
         col2.metric("🏝️ Som da Ilha", f"{total_sc}")
-        col3.metric("🎙️ Banco Túlio", f"{total_tulio}")
-        col4.metric("🎙️ Banco Jéssica", f"{total_jessica}")
-        
-        st.markdown("---")
+        col3.metric("🎙️ Acervo Túlio", f"{total_tulio}")
+        col4.metric("🎙️ Acervo Jéssica", f"{total_jessica}")
+        st.markdown("<br><hr>", unsafe_allow_html=True)
 
-    st.write("Digite o artista, nome da música ou nome do arquivo:")
-    termo = st.text_input("", label_visibility="collapsed")
+    termo = st.text_input("🔍 Buscar Música, Artista ou Arquivo:", placeholder="Ex: Dazaranha, Elis Regina...")
     
     if termo and not df_total.empty:
         termo_lower = termo.lower().strip()
@@ -336,12 +380,13 @@ if opcao == "🔍 Buscar no Acervo":
         
         resultados = df_total[mascara]
         if not resultados.empty:
+            st.success(f"✅ {len(resultados)} resultado(s) encontrado(s)!")
             st.dataframe(resultados, use_container_width=True)
         else:
-            st.error("Nenhuma música encontrada.")
+            st.warning("Nenhuma música encontrada com esse termo.")
             
     if not termo and not df_total.empty:
-        st.write("### 📅 Adicionadas Recentemente no Sistema:")
+        st.markdown("### 📅 Últimas Entradas no Sistema:")
         ultimas_cadastradas = df_total.tail(10).iloc[::-1]
         
         colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem", "Data Cadastro"] if c in ultimas_cadastradas.columns]
@@ -351,8 +396,10 @@ if opcao == "🔍 Buscar no Acervo":
 # 📂 ABA: VER TODO O ACERVO
 # ==========================================
 elif opcao == "📂 Ver Todo o Acervo":
-    st.title("📋 Visualização Geral do Acervo")
-    filtro_banco = st.selectbox("Selecione qual acervo deseja analisar:", ["Todos os Acervos Juntos", "Apenas Túlio", "Apenas Jéssica", "Apenas Som da Ilha"])
+    st.title("📋 Visualização Geral")
+    st.markdown("Explore os bancos de dados completos sem sair do painel.")
+    
+    filtro_banco = st.selectbox("Selecione a base de dados:", ["Todos os Acervos Juntos", "Apenas Túlio", "Apenas Jéssica", "Apenas Som da Ilha"])
     
     df_exibir = st.session_state["banco_completo"]
     
@@ -370,39 +417,41 @@ elif opcao == "📂 Ver Todo o Acervo":
 # 💿 ABA: FORMATADOR DE ACERVO
 # ==========================================
 elif opcao == "💿 Formatador de Acervo":
-    st.title("💿 Formatador & Hospedagem de Novos Cadastros")
-    st.markdown("Insira os títulos estruturados abaixo para enviar diretamente para as planilhas cópias.")
+    st.title("💿 Inserção de Novos Cadastros")
+    st.markdown("Cole os nomes dos arquivos brutos abaixo. O sistema fará a limpeza automática.")
 
-    texto_bruto = st.text_area("Cole aqui as linhas do seu acervo:", height=150)
-
-    if st.button("Formatar Acervo ⚡", type="primary"):
-        if texto_bruto:
-            linhas = texto_bruto.split('\n')
-            lista_geral = []
-            lista_sc = []
-            
-            for line in linhas:
-                res = processar_linha_acervo_original(line)
-                if res:
-                    eh_sc = res.pop("eh_sc", False)
-                    if eh_sc:
-                        lista_sc.append(res)
-                    else:
-                        lista_geral.append(res)
-            
-            st.session_state["lote_geral_atual"] = pd.DataFrame(lista_geral) if lista_geral else pd.DataFrame()
-            st.session_state["lote_sc_atual"] = pd.DataFrame(lista_sc) if lista_sc else pd.DataFrame()
-            st.balloons()
+    with st.container(border=True):
+        texto_bruto = st.text_area("Insira as linhas brutas:", height=150, placeholder="Ex: Artista - Música - Formato - Ano...")
+        
+        if st.button("Processar Linhas ⚡", type="primary"):
+            if texto_bruto:
+                linhas = texto_bruto.split('\n')
+                lista_geral = []
+                lista_sc = []
+                
+                for line in linhas:
+                    res = processar_linha_acervo_original(line)
+                    if res:
+                        eh_sc = res.pop("eh_sc", False)
+                        if eh_sc:
+                            lista_sc.append(res)
+                        else:
+                            lista_geral.append(res)
+                
+                st.session_state["lote_geral_atual"] = pd.DataFrame(lista_geral) if lista_geral else pd.DataFrame()
+                st.session_state["lote_sc_atual"] = pd.DataFrame(lista_sc) if lista_sc else pd.DataFrame()
+                st.toast("✅ Processamento concluído!")
 
     # --- PROCESSAMENTO DO LOTE GERAL ---
     if "lote_geral_atual" in st.session_state and not st.session_state["lote_geral_atual"].empty:
-        st.success("🎉 Lote GERAL formatado com sucesso:")
+        st.markdown("### 📝 Lote Geral (Nacional/Internacional)")
         df_editado_g = st.data_editor(st.session_state["lote_geral_atual"], use_container_width=True, key="edit_g_real")
         st.session_state["lote_geral_atual"] = df_editado_g
         
-        with st.expander("📥 SALVAR NO BANCO DE DADOS (Geral)", expanded=True):
-            u_nome_g = st.text_input("Seu Nome (Identificação Obrigatória):", key="usr_g").strip()
-            destino_geral = st.selectbox("Escolha a planilha destino:", ["Escolha uma opção...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"], key="dest_g")
+        with st.expander("☁️ SALVAR NAS NUVENS (Planilha Geral)", expanded=True):
+            col_a, col_b = st.columns(2)
+            u_nome_g = col_a.text_input("Seu Nome:", key="usr_g", placeholder="Obrigatório").strip()
+            destino_geral = col_b.selectbox("Destino:", ["Escolha uma opção...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"], key="dest_g")
             
             # Validação de Duplicadas
             lista_duplicadas_g = []
@@ -413,19 +462,13 @@ elif opcao == "💿 Formatador de Acervo":
                         lista_duplicadas_g.append(str(r["Nome do Arquivo"]))
 
             if lista_duplicadas_g:
-                st.error(f"⚠️ Bloqueado: O lote contém {len(lista_duplicadas_g)} música(s) já cadastradas no acervo!")
+                st.error(f"⚠️ Atenção: {len(lista_duplicadas_g)} música(s) já existem no banco principal!")
                 for dup in lista_duplicadas_g:
-                    st.write(f"❌ Já existe: `{dup}`")
+                    st.write(f"❌ Detectado: `{dup}`")
             
-            # Validação dos critérios obrigatórios
             bloquear_envio_g = bool(lista_duplicadas_g) or not u_nome_g or destino_geral == "Escolha uma opção..."
 
-            if not u_nome_g:
-                st.warning("⚠️ Digite seu nome para liberar a gravação.")
-            if destino_geral == "Escolha uma opção...":
-                st.warning("⚠️ Escolha uma planilha de destino válida para liberar a gravação.")
-
-            if st.button("Gravar Lote Geral nas Nuvens 💾", key="save_g_btn", disabled=bloquear_envio_g):
+            if st.button("Gravar Lote Geral 💾", key="save_g_btn", disabled=bloquear_envio_g, type="primary"):
                 url_webhook = WEBHOOK_TULIO if "Túlio" in destino_geral else WEBHOOK_JESSICA
                 total_g = len(df_editado_g)
                 
@@ -449,31 +492,27 @@ elif opcao == "💿 Formatador de Acervo":
                         "nome_arquivo": str(r.get("Nome do Arquivo", ""))
                     })
                 
-                with st.spinner(f"🚀 Despachando lote completo de {total_g} músicas..."):
+                with st.spinner(f"🚀 Enviando lote de {total_g} músicas..."):
                     sucesso, motivo = enviar_lote_completo_google(url_webhook, pacote_lote)
                 
                 if sucesso:
-                    st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email(destino_geral, df_editado_g, u_nome_g)
-                    
-                    st.write("🔄 Sincronizando banco...")
                     inicializar_acervos(forcar_recarga=True)
-                    
-                    st.success(f"🔥 Sucesso total! As {total_g} músicas foram salvas e integradas!")
+                    st.success("🔥 Sucesso! Músicas salvas e integradas.")
                     st.session_state["lote_geral_atual"] = pd.DataFrame()
                     time.sleep(1.0)
                     st.rerun()
                 else:
-                    st.error(f"❌ Falha no envio em bloco: {motivo}")
+                    st.error(f"❌ Falha no envio: {motivo}")
 
     # --- PROCESSAMENTO DO LOTE SOM DA ILHA ---
     if "lote_sc_atual" in st.session_state and not st.session_state["lote_sc_atual"].empty:
-        st.warning("🏝️ Lote SOM DA ILHA (Catarinenses) formatado:")
+        st.markdown("### 🏝️ Lote Regional (Som da Ilha)")
         df_editado_s = st.data_editor(st.session_state["lote_sc_atual"], use_container_width=True, key="edit_s_real")
         st.session_state["lote_sc_atual"] = df_editado_s
         
-        with st.expander("📥 SALVAR NO BANCO DE DADOS (Som da Ilha Ponte)", expanded=True):
-            u_nome_s = st.text_input("Seu Nome (Identificação Obrigatória):", key="usr_s").strip()
+        with st.expander("☁️ SALVAR NAS NUVENS (Planilha Som da Ilha)", expanded=True):
+            u_nome_s = st.text_input("Seu Nome:", key="usr_s", placeholder="Obrigatório").strip()
             
             # Validação de Duplicadas
             lista_duplicadas_s = []
@@ -484,16 +523,13 @@ elif opcao == "💿 Formatador de Acervo":
                         lista_duplicadas_s.append(str(r["Nome do Arquivo"]))
 
             if lista_duplicadas_s:
-                st.error(f"⚠️ Bloqueado: O lote contém {len(lista_duplicadas_s)} música(s) já cadastradas no acervo!")
+                st.error(f"⚠️ Atenção: {len(lista_duplicadas_s)} música(s) já existem no banco principal!")
                 for dup in lista_duplicadas_s:
-                    st.write(f"❌ Já existe: `{dup}`")
+                    st.write(f"❌ Detectado: `{dup}`")
 
             bloquear_envio_s = bool(lista_duplicadas_s) or not u_nome_s
-
-            if not u_nome_s:
-                st.warning("⚠️ Digite seu nome para liberar a gravação.")
             
-            if st.button("Gravar Lote Som da Ilha nas Nuvens 💾", key="save_s_btn", disabled=bloquear_envio_s):
+            if st.button("Gravar Lote Regional 💾", key="save_s_btn", disabled=bloquear_envio_s, type="primary"):
                 total_s = len(df_editado_s)
                 
                 pacote_lote_s = []
@@ -516,17 +552,13 @@ elif opcao == "💿 Formatador de Acervo":
                         "nome_arquivo": str(r.get("Nome do Arquivo", ""))
                     })
                 
-                with st.spinner(f"🚀 Despachando lote Som da Ilha de {total_s} músicas..."):
+                with st.spinner(f"🚀 Enviando lote Som da Ilha..."):
                     sucesso, motivo = enviar_lote_completo_google(WEBHOOK_SOM_DA_ILHA, pacote_lote_s)
                             
                 if sucesso:
-                    st.write("📧 Enviando e-mail de notificação...")
                     enviar_notificacao_email("Som da Ilha (Ponte)", df_editado_s, u_nome_s)
-                    
-                    st.write("🔄 Sincronizando banco...")
                     inicializar_acervos(forcar_recarga=True)
-                    
-                    st.success(f"🔥 Sucesso total! As {total_s} músicas do Som da Ilha foram salvas!")
+                    st.success("🔥 Sucesso! Músicas do Som da Ilha salvas.")
                     st.session_state["lote_sc_atual"] = pd.DataFrame()
                     time.sleep(1.0)
                     st.rerun()
@@ -536,37 +568,41 @@ elif opcao == "💿 Formatador de Acervo":
 # ==========================================
 # 📸 ABA: GERADOR DE SETLIST INSTAGRAM
 # ==========================================
-elif opcao == "📸 Gerador de Setlist (Instagram)":
-    st.title("📸 Formatador de Roteiro - Som da Ilha")
-    st.markdown("Instruções: Cole o texto do Sysrad e clique em formatar.")
+elif opcao == "📸 Gerador de Setlist":
+    st.title("📸 Setlist Redes Sociais")
+    st.markdown("Transforme a exportação do Sysrad em um roteiro limpo e com os @ do Instagram já aplicados.")
     banco_instagram, erro = carregar_banco_instagram(URL_GOOGLE_SHEETS)
     
-    if erro: st.error(erro)
+    if erro: 
+        st.error(erro)
     else:
-        st.success("✅ Banco de dados dos artistas conectado!")
-        texto_bruto_sysrad = st.text_area("1. Cole aqui o roteiro bruto copiado do Sysrad:", height=250)
+        st.toast("✅ Banco de dados conectado!")
+        
+        with st.container(border=True):
+            texto_bruto_sysrad = st.text_area("Cole o roteiro bruto copiado do Sysrad:", height=200)
 
-        if st.button("Formatar Roteiro ✨", type="primary"):
-            if texto_bruto_sysrad:
-                linhas = texto_bruto_sysrad.split('\n')
-                resultado = [datetime.now().strftime("%d/%m/%Y"), ""] 
-                for line in linhas:
-                    line = line.strip()
-                    if not line or "Marcador" in line or "Total:" in line or "DescriçãoDuração" in line:
-                        continue
-                    line = re.sub(r'\s*-\s*\(?part\.?[^)]+\)?\s*', ' ', line, flags=re.IGNORECASE)
-                    line = re.sub(r'\s*\(?part\.?[^)]+\)?\s*', ' ', line, flags=re.IGNORECASE)
-                    if " - " in line:
-                        partes = line.split(" - ", 1)
-                        artista_original = partes[0].strip()
-                        artista_busca = artista_original.lower()
-                        resto = partes[1]
-                        padrao_corte = r'(\(comp|\(compa|Álbum|EP|Single|\d{4}|\d{2}:\d{2})'
-                        musica_limpa = re.split(padrao_corte, resto, flags=re.IGNORECASE)[0].strip().rstrip('-').strip()
-                        instagram = banco_instagram.get(artista_busca, "")
-                        linha_final = f"{artista_original} - {musica_limpa} {instagram}".strip()
-                        resultado.append(linha_final)
-                texto_formatado = "\n".join(resultado)
-                st.subheader("📋 Roteiro Pronto para as Redes Sociais:")
-                st.text_area("Selecione tudo e copie:", value=texto_formatado, height=350)
-                st.balloons()
+            if st.button("✨ Gerar Formatação", type="primary"):
+                if texto_bruto_sysrad:
+                    linhas = texto_bruto_sysrad.split('\n')
+                    resultado = [datetime.now().strftime("%d/%m/%Y"), ""] 
+                    for line in linhas:
+                        line = line.strip()
+                        if not line or "Marcador" in line or "Total:" in line or "DescriçãoDuração" in line:
+                            continue
+                        line = re.sub(r'\s*-\s*\(?part\.?[^)]+\)?\s*', ' ', line, flags=re.IGNORECASE)
+                        line = re.sub(r'\s*\(?part\.?[^)]+\)?\s*', ' ', line, flags=re.IGNORECASE)
+                        if " - " in line:
+                            partes = line.split(" - ", 1)
+                            artista_original = partes[0].strip()
+                            artista_busca = artista_original.lower()
+                            resto = partes[1]
+                            padrao_corte = r'(\(comp|\(compa|Álbum|EP|Single|\d{4}|\d{2}:\d{2})'
+                            musica_limpa = re.split(padrao_corte, resto, flags=re.IGNORECASE)[0].strip().rstrip('-').strip()
+                            instagram = banco_instagram.get(artista_busca, "")
+                            linha_final = f"{artista_original} - {musica_limpa} {instagram}".strip()
+                            resultado.append(linha_final)
+                    
+                    texto_formatado = "\n".join(resultado)
+                    st.markdown("### 📋 Resultado Pronto para Copiar:")
+                    st.text_area(label="Resultado final", value=texto_formatado, height=350, label_visibility="collapsed")
+                    st.balloons()
