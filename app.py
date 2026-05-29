@@ -149,7 +149,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e salvo na planilha!
+Um novo lote de músicas foi processado e saved na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -294,7 +294,7 @@ def carregar_banco_instagram(url):
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
-    if not standalone := linha_original:
+    if not linha_original:
         return None
 
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
@@ -388,7 +388,7 @@ with st.sidebar:
     if st.button("🔄 Sincronizar Bases", use_container_width=True):
         inicializar_acervos(forcar_recarga=True)
         st.rerun()
-    st.caption("Desenvolvido para Gestão Interna • v1.2")
+    st.caption("Desenvolvido para Gestão Interna • v1.2.1")
 
 # ==========================================
 # 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD COM GRÁFICO)
@@ -484,8 +484,10 @@ elif opcao == "💿 Inserir Novo Lote":
                     res = processar_linha_acervo_original(line)
                     if res:
                         eh_sc = res.pop("eh_sc", False)
-                        if eh_sc: lista_sc.append(res)
-                        else: lista_geral.append(res)
+                        if eh_sc: 
+                            lista_sc.append(res)
+                        else: 
+                            lista_geral.append(res)
                 
                 st.session_state["lote_geral_atual"] = pd.DataFrame(lista_geral) if lista_geral else pd.DataFrame()
                 st.session_state["lote_sc_atual"] = pd.DataFrame(lista_sc) if lista_sc else pd.DataFrame()
@@ -518,7 +520,6 @@ elif opcao == "💿 Inserir Novo Lote":
 
             if st.button("Enviar Lote para Nuvem 💾", key="save_g_btn", disabled=bloquear_envio_g, type="primary"):
                 url_webhook = WEBHOOK_TULIO if "Túlio" in destino_geral else WEBHOOK_JESSICA
-                total_g = len(df_editado_g)
                 pacote_lote = []
                 
                 for _, r in df_editado_g.iterrows():
@@ -542,55 +543,6 @@ elif opcao == "💿 Inserir Novo Lote":
                     st.rerun()
                 else:
                     st.error(f"Ocorreu um erro no disparo: {motivo}")
-
-    # --- EDITE & GRAVE: LOTE SOM DA ILHA ---
-    if "lote_sc_atual" in st.session_state and not st.session_state["lote_sc_atual"].empty:
-        st.markdown("<h3 style='color: #0f172a; margin-top: 20px;'>🏝️ Grade Editável: Som da Ilha (Catarinenses)</h3>", unsafe_allow_html=True)
-        df_editado_s = st.data_editor(st.session_state["lote_sc_atual"], use_container_width=True, key="edit_s_real")
-        st.session_state["lote_sc_atual"] = df_editado_s
-        
-        with st.expander("📥 Configurações de Postagem Automática (Som da Ilha)", expanded=True):
-            u_nome_s = st.text_input("Nome do Operador (SC):", key="usr_s", placeholder="Campo Obrigatório").strip()
-            
-            lista_duplicadas_s = []
-            if "banco_completo" in st.session_state and not st.session_state["banco_completo"].empty:
-                arquivos_no_banco = set(st.session_state["banco_completo"]["Nome do Arquivo"].astype(str).str.lower().str.strip())
-                for _, r in df_editado_s.iterrows():
-                    if str(r["Nome do Arquivo"]).lower().strip() in arquivos_no_banco:
-                        lista_duplicadas_s.append(str(r["Nome do Arquivo"]))
-
-            if lista_duplicadas_s:
-                st.error(f"🛑 Gravação Travada! Foram encontradas músicas duplicadas:")
-                for dup in lista_duplicadas_s:
-                    st.write(f"❌ Conflito de arquivo existente: `{dup}`")
-
-            bloquear_envio_s = bool(lista_duplicadas_s) or not u_nome_s
-            
-            if st.button("Enviar Lote Regional 💾", key="save_s_btn", disabled=bloquear_envio_s, type="primary"):
-                total_s = len(df_editado_s)
-                pacote_lote_s = []
-                
-                for _, r in df_editado_s.iterrows():
-                    pacote_lote_s.append({
-                        "usuario": u_nome_s, "musica": str(r.get("Música", "")), "artista": str(r.get("Artista", "")), 
-                        "compositores": str(r.get("Compositores", "")), "formato": str(r.get("Formato", "")), "ano": str(r.get("Ano", "")), 
-                        "origem": str(r.get("Origem", "")), "genero": str(r.get("Gênero", "")), "genero_relacionado": str(r.get("Gênero Relacionado", "")),
-                        "idioma_est": str(r.get("Est/Idioma", "")), "classificacao": str(r.get("Classificação", "")), "andamento": str(r.get("Andamento", "")), 
-                        "data_cadastro": str(r.get("Data Cadastro", "")), "participacoes": str(r.get("Participações", "")), "nome_arquivo": str(r.get("Nome do Arquivo", ""))
-                    })
-                
-                with st.spinner("Despachando lote catarinense..."):
-                    sucesso, motivo = enviar_lote_completo_google(WEBHOOK_SOM_DA_ILHA, pacote_lote_s)
-                            
-                if sucesso:
-                    enviar_notificacao_email("Som da Ilha (Ponte)", df_editado_s, u_nome_s)
-                    inicializar_acervos(forcar_recarga=True)
-                    st.success("Músicas salvas na base Som da Ilha!")
-                    st.session_state["lote_sc_atual"] = pd.DataFrame()
-                    time.sleep(1.0)
-                    st.rerun()
-                else:
-                    st.error(f"Falha técnica: {motivo}")
 
 # ==========================================
 # 📸 ABA: ROTEIRO INSTAGRAM
