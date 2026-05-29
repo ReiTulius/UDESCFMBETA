@@ -59,7 +59,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e salvo na planilha!
+Um novo lote de músicas foi processado e saved na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -81,7 +81,7 @@ Aviso automático do Painel de Controle Udesc FM."""
         pass
 
 # ==========================================
-# 🔄 LEITOR INTEGRADO DO ACERVO (BLINDADO)
+# 🔄 LEITOR INTEGRADO DO ACERVO
 # ==========================================
 def puxar_dados_do_google(url, nome_acervo):
     try:
@@ -141,7 +141,7 @@ def puxar_dados_do_google(url, nome_acervo):
 
 def inicializar_acervos(forcar_recarga=False):
     if "banco_completo" not in st.session_state or forcar_recarga:
-        with St_spinner := st.spinner("Sincronizando acervos em tempo real..."):
+        with st.spinner("Sincronizando acervos em tempo real..."):
             df_som_pro = puxar_dados_do_google(URL_SOM_DA_ILHA_PRO, "Som da Ilha")
             df_tulio_pro = puxar_dados_do_google(URL_TULIO_PRO, "Túlio")
             df_jessica_pro = puxar_dados_do_google(URL_JESSICA_PRO, "Jéssica")
@@ -270,7 +270,7 @@ def processar_linha_acervo_original(linha_bruta):
     data_hoje = datetime.now(fuso_brasilia).strftime("%d/%m/%Y")
 
     return {
-        "Música": musica, "Artista": artist := artista, "Compositores": compositores,
+        "Música": musica, "Artista": artista, "Compositores": compositores,
         "Formato": formato, "Ano": ano, "Origem": "", "Gênero": "", "Gênero Relacionado": "",
         "Est/Idioma": "SC" if eh_sc else "", "Classificação": "", "Andamento": "",
         "Data Cadastro": data_hoje, "Participações": participacao, "Nome do Arquivo": nome_arquivo_formatado,
@@ -399,7 +399,7 @@ elif opcao == "💿 Formatador de Acervo":
         df_editado_g = st.data_editor(st.session_state["lote_geral_atual"], use_container_width=True, key="edit_g_real")
         st.session_state["lote_geral_atual"] = df_editado_g
         
-        with St_expander := st.expander("📥 SALVAR NO BANCO DE DADOS (Geral)", expanded=True):
+        with st.expander("📥 SALVAR NO BANCO DE DADOS (Geral)", expanded=True):
             u_nome_g = st.text_input("Seu Nome (Identificação Obrigatória):", key="usr_g").strip()
             destino_geral = st.selectbox("Escolha a planilha destino:", ["Escolha uma opção...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"], key="dest_g")
             
@@ -550,6 +550,6 @@ elif opcao == "📸 Gerador de Setlist (Instagram)":
                         linha_final = f"{artista_original} - {musica_limpa} {instagram}".strip()
                         resultado.append(linha_final)
                 texto_formatado = "\n".join(resultado)
-                st.subheader("📋 Roteiro Pronto para as Redes Sociais:")
+                st.subheader("📋 Roteiro Ready para as Redes Sociais:")
                 st.text_area("Selecione tudo e copie:", value=texto_formatado, height=350)
                 st.balloons()
