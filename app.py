@@ -204,7 +204,7 @@ def carregar_banco_instagram(url):
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
-    if not linha_original:
+    if not línea_original:
         return None
 
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
@@ -549,7 +549,7 @@ elif opcao == "📸 Gerador de Setlist (Instagram)":
             if texto_bruto_sysrad:
                 linhas = texto_bruto_sysrad.split('\n')
                 resultado = [datetime.now().strftime("%d/%m/%Y"), ""] 
-                for line in hashtags_line := linhas:
+                for line in linhas:
                     line = line.strip()
                     if not line or "Marcador" in line or "Total:" in line or "DescriçãoDuração" in line:
                         continue
