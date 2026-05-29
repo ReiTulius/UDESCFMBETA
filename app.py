@@ -204,7 +204,7 @@ def carregar_banco_instagram(url):
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
-    if not línea_original:
+    if not linha_original:
         return None
 
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
