@@ -91,6 +91,12 @@ def injetar_css_premium():
             background-color: #ffffff !important;
         }
         
+        /* FORÇAR TEXTO PRETO NA DIGITAÇÃO (Correção do contraste oculto) */
+        div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+        }
+        
         /* Botões Principais Estilo Moderno */
         .stButton>button {
             border-radius: 10px !important;
@@ -149,7 +155,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e salvo na planilha!
+Um novo lote de músicas foi processado e saved na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -310,7 +316,7 @@ def processar_linha_acervo_original(linha_bruta):
     artista, participacao, musica, formato, ano, compositores = "", "", "", "", "", ""
     
     padrao_comp = r'\((comp\.|compa)[^)]+\)'
-    busca_comp = re.search(padrao_comp, linha_trabalho, flags=re.IGNORECASE)
+    busca_comp = re.search(padrao_comp, offset := linha_trabalho, flags=re.IGNORECASE)
     if busca_comp:
         compositores_com_parentese = busca_comp.group(0)
         compositores = re.sub(r'\((comp\.|compa)\s*', '', compositores_com_parentese, flags=re.IGNORECASE).rstrip(')')
@@ -354,7 +360,7 @@ def processar_linha_acervo_original(linha_bruta):
     data_hoje = datetime.now(fuso_brasilia).strftime("%d/%m/%Y")
 
     return {
-        "Música": musica, "Artista": artist, "Compositores": compositores,
+        "Música": musica, "Artista": artista, "Compositores": compositores,
         "Formato": formato, "Ano": ano, "Origem": "", "Gênero": "", "Gênero Relacionado": "",
         "Est/Idioma": "SC" if eh_sc else "", "Classificação": "", "Andamento": "",
         "Data Cadastro": data_hoje, "Participações": participacao, "Nome do Arquivo": nome_arquivo_formatado,
@@ -388,13 +394,12 @@ with st.sidebar:
     if st.button("🔄 Sincronizar Bases", use_container_width=True):
         inicializar_acervos(forcar_recarga=True)
         st.rerun()
-    st.caption("Desenvolvido para Gestão Interna • v1.4")
+    st.caption("Desenvolvido para Gestão Interna • v1.5")
 
 # ==========================================
 # 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD)
 # ==========================================
 if opcao == "🔍 Painel Principal":
-    # Mudança para cor Branca nítida (#ffffff)
     st.markdown("<h1 style='color: #ffffff;'>📊 Painel Geral do Acervo</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #cbd5e1;'>Visão analítica em tempo real e busca unificada do sistema.</p>", unsafe_allow_html=True)
     
@@ -415,7 +420,7 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- 🛠️ MUDANÇA: MECANISMO DE BUSCA MOVIDO PARA CIMA ---
+        # --- MECANISMO DE BUSCA INTELIGENTE (Texto Preto Configurado) ---
         termo = st.text_input("🔍 Mecanismo de Busca Inteligente:", placeholder="Digite o nome da música, artista ou trecho do arquivo...")
         
         if termo:
@@ -434,7 +439,7 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
         
-        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA (Cor branca realçada)
+        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA
         st.markdown("<h3 style='font-size: 1.2em; color: #ffffff;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
         ultimas_cadastradas = df_total.tail(6).iloc[::-1]
         colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem"] if c in ultimas_cadastradas.columns]
@@ -444,7 +449,6 @@ if opcao == "🔍 Painel Principal":
 # 📂 ABA: VER TODO O ACERVO
 # ==========================================
 elif opcao == "📂 Ver Todo o Acervo":
-    # Mudança para cor Branca nítida (#ffffff)
     st.markdown("<h1 style='color: #ffffff;'>📋 Exploração de Dados</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #cbd5e1;'>Filtre e visualize as tabelas brutas diretamente do ecossistema Google Sheets.</p>", unsafe_allow_html=True)
     
@@ -465,7 +469,6 @@ elif opcao == "📂 Ver Todo o Acervo":
 # 💿 ABA: INSERIR NOVO LOTE
 # ==========================================
 elif opcao == "💿 Inserir Novo Lote":
-    # Mudança para cor Branca nítida (#ffffff)
     st.markdown("<h1 style='color: #ffffff;'>💿 Formatador de Acervo Integrado</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #cbd5e1;'>Insira suas linhas de arquivos de áudio. O motor fará o desmembramento técnico padronizado.</p>", unsafe_allow_html=True)
 
@@ -491,7 +494,6 @@ elif opcao == "💿 Inserir Novo Lote":
 
     # --- EDITE & GRAVE: LOTE GERAL ---
     if "lote_geral_atual" in st.session_state and not st.session_state["lote_geral_atual"].empty:
-        # Mudança para cor Branca nítida (#ffffff)
         st.markdown("<h3 style='color: #ffffff; margin-top: 20px;'>📝 Grade Editável: Lote Geral</h3>", unsafe_allow_html=True)
         df_editado_g = st.data_editor(st.session_state["lote_geral_atual"], use_container_width=True, key="edit_g_real")
         st.session_state["lote_geral_atual"] = df_editado_g
@@ -543,7 +545,6 @@ elif opcao == "💿 Inserir Novo Lote":
 
     # --- EDITE & GRAVE: LOTE SOM DA ILHA ---
     if "lote_sc_atual" in st.session_state and not st.session_state["lote_sc_atual"].empty:
-        # Mudança para cor Branca nítida (#ffffff)
         st.markdown("<h3 style='color: #ffffff; margin-top: 20px;'>🏝️ Grade Editável: Som da Ilha (Catarinenses)</h3>", unsafe_allow_html=True)
         df_editado_s = st.data_editor(st.session_state["lote_sc_atual"], use_container_width=True, key="edit_s_real")
         st.session_state["lote_sc_atual"] = df_editado_s
@@ -594,7 +595,6 @@ elif opcao == "💿 Inserir Novo Lote":
 # 📸 ABA: ROTEIRO INSTAGRAM
 # ==========================================
 elif opcao == "📸 Roteiro Instagram":
-    # Mudança para cor Branca nítida (#ffffff)
     st.markdown("<h1 style='color: #ffffff;'>📸 Gerador de Roteiros para Redes Sociais</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #cbd5e1;'>Importe a listagem bruta do Sysrad para cruzar e anexar as marcações de Instagram cadastradas.</p>", unsafe_allow_html=True)
     banco_instagram, erro = carregar_banco_instagram(URL_GOOGLE_SHEETS)
