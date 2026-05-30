@@ -18,7 +18,7 @@ st.set_page_config(page_title="Acervo Oficial Integrado - Udesc FM", page_icon="
 def injetar_css_premium():
     st.markdown("""
     <style>
-        /* Ocultar elementos padrão do Streamlit */
+        /* Ocultar elements padrão do Streamlit */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
@@ -98,10 +98,11 @@ def injetar_css_premium():
             box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.15) !important;
         }
         
-        /* FORÇAR TEXTO PRETO NA DIGITAÇÃO (Correção do contraste oculto) */
+        /* FORÇAR TEXTO E CURSOR PISCANTE PRETO NA DIGITAÇÃO */
         div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea {
             color: #000000 !important;
             -webkit-text-fill-color: #000000 !important;
+            caret-color: #000000 !important; /* Torna a barrinha/cursor 100% preta e visível */
         }
         
         /* Botões Principais Estilo Moderno */
@@ -155,14 +156,14 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         linhas_musicas = []
         for _, linha in df_novas.iterrows():
             nome_arq = linha.get('Nome do Arquivo', '')
-            if not nome_arq and 'Música' in linha:
+            if not nome_arq and 'Música' in line:
                 nome_arq = f"{linha.get('Artista', 'Desconhecido')} - {linha.get('Música', 'Sem Nome')}"
             linhas_musicas.append(f"• {nome_arq}.mp3")
         lista_texto = "\n".join(linhas_musicas)
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e saved na planilha!
+Um novo lote de músicas foi processado e salvo na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -446,7 +447,7 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
         
-        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA (Agora com Data de Cadastro inclusa)
+        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA (Com Data Cadastro Inclusa)
         st.markdown("<h3 style='font-size: 1.2em; color: #ffffff;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
         ultimas_cadastradas = df_total.tail(6).iloc[::-1]
         colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem", "Data Cadastro"] if c in ultimas_cadastradas.columns]
