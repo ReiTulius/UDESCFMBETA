@@ -149,7 +149,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e saved na planilha!
+Um novo lote de músicas foi processado e salvo na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -388,10 +388,10 @@ with st.sidebar:
     if st.button("🔄 Sincronizar Bases", use_container_width=True):
         inicializar_acervos(forcar_recarga=True)
         st.rerun()
-    st.caption("Desenvolvido para Gestão Interna • v1.2.1")
+    st.caption("Desenvolvido para Gestão Interna • v1.3")
 
 # ==========================================
-# 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD COM GRÁFICO)
+# 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD)
 # ==========================================
 if opcao == "🔍 Painel Principal":
     st.markdown("<h1 style='color: #0f172a;'>📊 Painel Geral do Acervo</h1>", unsafe_allow_html=True)
@@ -405,7 +405,7 @@ if opcao == "🔍 Painel Principal":
         total_tulio = len(df_total[df_total["Acervo Origem"] == "Túlio"])
         total_jessica = len(df_total[df_total["Acervo Origem"] == "Jéssica"])
         
-        # Grid de Métricas
+        # Grid de Métricas Premium
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("📦 Banco Unificado", f"{total_musicas} faixas")
         col2.metric("🏝️ Som da Ilha", f"{total_sc} mscs")
@@ -414,20 +414,11 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # SEÇÃO VISUAL: GRÁFICO + ÚLTIMOS CADASTROS (LADO A LADO)
-        col_grafico, col_recentes = st.columns([1, 1])
-        
-        with col_grafico:
-            st.markdown("<h3 style='font-size: 1.2em; color: #334155;'>📊 Proporção de Músicas por Fonte</h3>", unsafe_allow_html=True)
-            df_chart = df_total["Acervo Origem"].value_counts().reset_index()
-            df_chart.columns = ["Fonte", "Músicas"]
-            st.bar_chart(df_chart.set_index("Fonte"), y="Músicas", color="#0284c7", use_container_width=True)
-            
-        with col_recentes:
-            st.markdown("<h3 style='font-size: 1.2em; color: #334155;'>📅 Adicionadas Recentemente</h3>", unsafe_allow_html=True)
-            ultimas_cadastradas = df_total.tail(6).iloc[::-1]
-            colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem"] if c in ultimas_cadastradas.columns]
-            st.dataframe(ultimas_cadastradas[colunas_exibicao], use_container_width=True, hide_index=True)
+        # SEÇÃO VISUAL: APENAS ÚLTIMOS CADASTROS EM DESTAQUE (LIMPANDO O GRÁFICO)
+        st.markdown("<h3 style='font-size: 1.2em; color: #334155;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
+        ultimas_cadastradas = df_total.tail(6).iloc[::-1]
+        colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem"] if c in ultimas_cadastradas.columns]
+        st.dataframe(ultimas_cadastradas[colunas_exibicao], use_container_width=True, hide_index=True)
 
     st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
     termo = st.text_input("🔍 Mecanismo de Busca Inteligente:", placeholder="Digite o nome da música, artista ou trecho do arquivo...")
@@ -543,6 +534,54 @@ elif opcao == "💿 Inserir Novo Lote":
                     st.rerun()
                 else:
                     st.error(f"Ocorreu um erro no disparo: {motivo}")
+
+    # --- EDITE & GRAVE: LOTE SOM DA ILHA ---
+    if "lote_sc_atual" in st.session_state and not st.session_state["lote_sc_atual"].empty:
+        st.markdown("<h3 style='color: #0f172a; margin-top: 20px;'>🏝️ Grade Editável: Som da Ilha (Catarinenses)</h3>", unsafe_allow_html=True)
+        df_editado_s = st.data_editor(st.session_state["lote_sc_atual"], use_container_width=True, key="edit_s_real")
+        st.session_state["lote_sc_atual"] = df_editado_s
+        
+        with st.expander("📥 Configurações de Postagem Automática (Som da Ilha)", expanded=True):
+            u_nome_s = st.text_input("Nome do Operador (SC):", key="usr_s", placeholder="Campo Obrigatório").strip()
+            
+            lista_duplicadas_s = []
+            if "banco_completo" in st.session_state and not st.session_state["banco_completo"].empty:
+                arquivos_no_banco = set(st.session_state["banco_completo"]["Nome do Arquivo"].astype(str).str.lower().str.strip())
+                for _, r in df_editado_s.iterrows():
+                    if str(r["Nome do Arquivo"]).lower().strip() in arquivos_no_banco:
+                        lista_duplicadas_s.append(str(r["Nome do Arquivo"]))
+
+            if lista_duplicadas_s:
+                st.error(f"🛑 Gravação Travada! Foram encontradas músicas duplicadas:")
+                for dup in lista_duplicadas_s:
+                    st.write(f"❌ Conflito de arquivo existente: `{dup}`")
+
+            bloquear_envio_s = bool(lista_duplicadas_s) or not u_nome_s
+            
+            if st.button("Enviar Lote Regional 💾", key="save_s_btn", disabled=bloquear_envio_s, type="primary"):
+                pacote_lote_s = []
+                
+                for _, r in df_editado_s.iterrows():
+                    pacote_lote_s.append({
+                        "usuario": u_nome_s, "musica": str(r.get("Música", "")), "artista": str(r.get("Artista", "")), 
+                        "compositores": str(r.get("Compositores", "")), "formato": str(r.get("Formato", "")), "ano": str(r.get("Ano", "")), 
+                        "origem": str(r.get("Origem", "")), "genero": str(r.get("Gênero", "")), "genero_relacionado": str(r.get("Gênero Relacionado", "")),
+                        "idioma_est": str(r.get("Est/Idioma", "")), "classificacao": str(r.get("Classificação", "")), "andamento": str(r.get("Andamento", "")), 
+                        "data_cadastro": str(r.get("Data Cadastro", "")), "participacoes": str(r.get("Participações", "")), "nome_arquivo": str(r.get("Nome do Arquivo", ""))
+                    })
+                
+                with st.spinner("Despachando lote catarinense..."):
+                    sucesso, motivo = enviar_lote_completo_google(WEBHOOK_SOM_DA_ILHA, pacote_lote_s)
+                            
+                if sucesso:
+                    enviar_notificacao_email("Som da Ilha (Ponte)", df_editado_s, u_nome_s)
+                    inicializar_acervos(forcar_recarga=True)
+                    st.success("Músicas salvas na base Som da Ilha!")
+                    st.session_state["lote_sc_atual"] = pd.DataFrame()
+                    time.sleep(1.0)
+                    st.rerun()
+                else:
+                    st.error(f"Falha técnica: {motivo}")
 
 # ==========================================
 # 📸 ABA: ROTEIRO INSTAGRAM
