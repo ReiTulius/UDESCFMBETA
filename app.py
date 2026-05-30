@@ -354,7 +354,7 @@ def processar_linha_acervo_original(linha_bruta):
     data_hoje = datetime.now(fuso_brasilia).strftime("%d/%m/%Y")
 
     return {
-        "Música": musica, "Artista": artista, "Compositores": compositores,
+        "Música": musica, "Artista": artist, "Compositores": compositores,
         "Formato": formato, "Ano": ano, "Origem": "", "Gênero": "", "Gênero Relacionado": "",
         "Est/Idioma": "SC" if eh_sc else "", "Classificação": "", "Andamento": "",
         "Data Cadastro": data_hoje, "Participações": participacao, "Nome do Arquivo": nome_arquivo_formatado,
@@ -388,14 +388,15 @@ with st.sidebar:
     if st.button("🔄 Sincronizar Bases", use_container_width=True):
         inicializar_acervos(forcar_recarga=True)
         st.rerun()
-    st.caption("Desenvolvido para Gestão Interna • v1.3")
+    st.caption("Desenvolvido para Gestão Interna • v1.4")
 
 # ==========================================
 # 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD)
 # ==========================================
 if opcao == "🔍 Painel Principal":
-    st.markdown("<h1 style='color: #0f172a;'>📊 Painel Geral do Acervo</h1>", unsafe_allow_html=True)
-    st.markdown("Visão analítica em tempo real e busca unificada do sistema.")
+    # Mudança para cor Branca nítida (#ffffff)
+    st.markdown("<h1 style='color: #ffffff;'>📊 Painel Geral do Acervo</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #cbd5e1;'>Visão analítica em tempo real e busca unificada do sistema.</p>", unsafe_allow_html=True)
     
     df_total = st.session_state["banco_completo"]
     
@@ -414,35 +415,38 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # SEÇÃO VISUAL: APENAS ÚLTIMOS CADASTROS EM DESTAQUE (LIMPANDO O GRÁFICO)
-        st.markdown("<h3 style='font-size: 1.2em; color: #334155;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
+        # --- 🛠️ MUDANÇA: MECANISMO DE BUSCA MOVIDO PARA CIMA ---
+        termo = st.text_input("🔍 Mecanismo de Busca Inteligente:", placeholder="Digite o nome da música, artista ou trecho do arquivo...")
+        
+        if termo:
+            termo_lower = termo.lower().strip()
+            mascara = pd.Series(False, index=df_total.index)
+            for col in df_total.columns:
+                if col != "Acervo Origem":
+                    mascara |= df_total[col].astype(str).str.lower().str.contains(termo_lower, na=False)
+            
+            resultados = df_total[mascara]
+            if not resultados.empty:
+                st.success(f"Encontramos {len(resultados)} correspondência(s) no sistema!")
+                st.dataframe(resultados, use_container_width=True)
+            else:
+                st.error("Nenhum registro encontrado com os dados informados.")
+        
+        st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
+        
+        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA (Cor branca realçada)
+        st.markdown("<h3 style='font-size: 1.2em; color: #ffffff;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
         ultimas_cadastradas = df_total.tail(6).iloc[::-1]
         colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem"] if c in ultimas_cadastradas.columns]
         st.dataframe(ultimas_cadastradas[colunas_exibicao], use_container_width=True, hide_index=True)
-
-    st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
-    termo = st.text_input("🔍 Mecanismo de Busca Inteligente:", placeholder="Digite o nome da música, artista ou trecho do arquivo...")
-    
-    if termo and not df_total.empty:
-        termo_lower = termo.lower().strip()
-        mascara = pd.Series(False, index=df_total.index)
-        for col in df_total.columns:
-            if col != "Acervo Origem":
-                mascara |= df_total[col].astype(str).str.lower().str.contains(termo_lower, na=False)
-        
-        resultados = df_total[mascara]
-        if not resultados.empty:
-            st.success(f"Encontramos {len(resultados)} correspondência(s) no sistema!")
-            st.dataframe(resultados, use_container_width=True)
-        else:
-            st.error("Nenhum registro encontrado com os dados informados.")
 
 # ==========================================
 # 📂 ABA: VER TODO O ACERVO
 # ==========================================
 elif opcao == "📂 Ver Todo o Acervo":
-    st.markdown("<h1 style='color: #0f172a;'>📋 Exploração de Dados</h1>", unsafe_allow_html=True)
-    st.markdown("Filtre e visualize as tabelas brutas diretamente do ecossistema Google Sheets.")
+    # Mudança para cor Branca nítida (#ffffff)
+    st.markdown("<h1 style='color: #ffffff;'>📋 Exploração de Dados</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #cbd5e1;'>Filtre e visualize as tabelas brutas diretamente do ecossistema Google Sheets.</p>", unsafe_allow_html=True)
     
     filtro_banco = st.selectbox("Selecione a Base Alvo:", ["Todos os Acervos Juntos", "Apenas Túlio", "Apenas Jéssica", "Apenas Som da Ilha"])
     df_exibir = st.session_state["banco_completo"]
@@ -461,8 +465,9 @@ elif opcao == "📂 Ver Todo o Acervo":
 # 💿 ABA: INSERIR NOVO LOTE
 # ==========================================
 elif opcao == "💿 Inserir Novo Lote":
-    st.markdown("<h1 style='color: #0f172a;'>💿 Formatador de Acervo Integrado</h1>", unsafe_allow_html=True)
-    st.markdown("Insira suas linhas de arquivos de áudio. O motor fará o desmembramento técnico padronizado.")
+    # Mudança para cor Branca nítida (#ffffff)
+    st.markdown("<h1 style='color: #ffffff;'>💿 Formatador de Acervo Integrado</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #cbd5e1;'>Insira suas linhas de arquivos de áudio. O motor fará o desmembramento técnico padronizado.</p>", unsafe_allow_html=True)
 
     with st.container(border=True):
         texto_bruto = st.text_area("Cole as linhas aqui:", height=150, placeholder="Ex: Artista - Nome da Musica - MP3 - 2024")
@@ -486,7 +491,8 @@ elif opcao == "💿 Inserir Novo Lote":
 
     # --- EDITE & GRAVE: LOTE GERAL ---
     if "lote_geral_atual" in st.session_state and not st.session_state["lote_geral_atual"].empty:
-        st.markdown("<h3 style='color: #0f172a; margin-top: 20px;'>📝 Grade Editável: Lote Geral</h3>", unsafe_allow_html=True)
+        # Mudança para cor Branca nítida (#ffffff)
+        st.markdown("<h3 style='color: #ffffff; margin-top: 20px;'>📝 Grade Editável: Lote Geral</h3>", unsafe_allow_html=True)
         df_editado_g = st.data_editor(st.session_state["lote_geral_atual"], use_container_width=True, key="edit_g_real")
         st.session_state["lote_geral_atual"] = df_editado_g
         
@@ -537,7 +543,8 @@ elif opcao == "💿 Inserir Novo Lote":
 
     # --- EDITE & GRAVE: LOTE SOM DA ILHA ---
     if "lote_sc_atual" in st.session_state and not st.session_state["lote_sc_atual"].empty:
-        st.markdown("<h3 style='color: #0f172a; margin-top: 20px;'>🏝️ Grade Editável: Som da Ilha (Catarinenses)</h3>", unsafe_allow_html=True)
+        # Mudança para cor Branca nítida (#ffffff)
+        st.markdown("<h3 style='color: #ffffff; margin-top: 20px;'>🏝️ Grade Editável: Som da Ilha (Catarinenses)</h3>", unsafe_allow_html=True)
         df_editado_s = st.data_editor(st.session_state["lote_sc_atual"], use_container_width=True, key="edit_s_real")
         st.session_state["lote_sc_atual"] = df_editado_s
         
@@ -587,8 +594,9 @@ elif opcao == "💿 Inserir Novo Lote":
 # 📸 ABA: ROTEIRO INSTAGRAM
 # ==========================================
 elif opcao == "📸 Roteiro Instagram":
-    st.markdown("<h1 style='color: #0f172a;'>📸 Gerador de Roteiros para Redes Sociais</h1>", unsafe_allow_html=True)
-    st.markdown("Importe a listagem bruta do Sysrad para cruzar e anexar as marcações de Instagram cadastradas.")
+    # Mudança para cor Branca nítida (#ffffff)
+    st.markdown("<h1 style='color: #ffffff;'>📸 Gerador de Roteiros para Redes Sociais</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #cbd5e1;'>Importe a listagem bruta do Sysrad para cruzar e anexar as marcações de Instagram cadastradas.</p>", unsafe_allow_html=True)
     banco_instagram, erro = carregar_banco_instagram(URL_GOOGLE_SHEETS)
     
     if erro: 
