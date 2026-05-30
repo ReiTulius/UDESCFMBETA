@@ -91,6 +91,13 @@ def injetar_css_premium():
             background-color: #ffffff !important;
         }
         
+        /* Customização da borda de foco (quando clica na caixa de texto) */
+        div[data-baseweb="input"] > div:focus-within, 
+        div[data-baseweb="textarea"] > div:focus-within {
+            border-color: #0f172a !important;
+            box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.15) !important;
+        }
+        
         /* FORÇAR TEXTO PRETO NA DIGITAÇÃO (Correção do contraste oculto) */
         div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea {
             color: #000000 !important;
@@ -394,7 +401,7 @@ with st.sidebar:
     if st.button("🔄 Sincronizar Bases", use_container_width=True):
         inicializar_acervos(forcar_recarga=True)
         st.rerun()
-    st.caption("Desenvolvido para Gestão Interna • v1.5")
+    st.caption("Desenvolvido para Gestão Interna • v1.6")
 
 # ==========================================
 # 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD)
@@ -420,7 +427,7 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- MECANISMO DE BUSCA INTELIGENTE (Texto Preto Configurado) ---
+        # --- MECANISMO DE BUSCA INTELIGENTE ---
         termo = st.text_input("🔍 Mecanismo de Busca Inteligente:", placeholder="Digite o nome da música, artista ou trecho do arquivo...")
         
         if termo:
@@ -439,10 +446,10 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
         
-        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA
+        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA (Agora com Data de Cadastro inclusa)
         st.markdown("<h3 style='font-size: 1.2em; color: #ffffff;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
         ultimas_cadastradas = df_total.tail(6).iloc[::-1]
-        colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem"] if c in ultimas_cadastradas.columns]
+        colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem", "Data Cadastro"] if c in ultimas_cadastradas.columns]
         st.dataframe(ultimas_cadastradas[colunas_exibicao], use_container_width=True, hide_index=True)
 
 # ==========================================
@@ -473,6 +480,9 @@ elif opcao == "💿 Inserir Novo Lote":
     st.markdown("<p style='color: #cbd5e1;'>Insira suas linhas de arquivos de áudio. O motor fará o desmembramento técnico padronizado.</p>", unsafe_allow_html=True)
 
     with st.container(border=True):
+        # Card de instrução para novos usuários do painel
+        st.info("💡 **Dica Prática:** Selecione todas as músicas que deseja cadastrar no seu computador, clique com o botão direito do mouse, clique em **'Copiar como caminho'** (ou 'Copy as path') e cole diretamente na caixa de texto abaixo.")
+        
         texto_bruto = st.text_area("Cole as linhas aqui:", height=150, placeholder="Ex: Artista - Nome da Musica - MP3 - 2024")
         if st.button("Executar Engenharia de Linhas ⚡", type="primary", use_container_width=True):
             if texto_bruto:
