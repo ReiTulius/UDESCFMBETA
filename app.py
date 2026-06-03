@@ -138,6 +138,30 @@ WEBHOOK_SOM_DA_ILHA = "https://script.google.com/macros/s/AKfycbw1Rzkirio_e9qIqL
 WEBHOOK_TULIO = "https://script.google.com/macros/s/AKfycbxR5g2pWU_2_ClapUxY5PWCnH-C9NBrmiT8F1wf0GoLm2KV9jAmMlOQLSGdWsLHNzqX/exec"
 WEBHOOK_JESSICA = "https://script.google.com/macros/s/AKfycbwGif0xdjbzvo82mvG1CnrKwt8jvp-OWwHCFv3_FTQNJtGxT7m15hZGeO3k7ryWl3E9uQ/exec"
 
+# ⚙️ CONEXÕES DA CENTRAL DE EXPANSÃO DE ACERVOS
+WEBHOOK_EXPANSAO_CENTRAL = "https://script.google.com/macros/s/AKfycbxpqOsTpw0PTG7Zk9WTn7KV1cW4TEIB2jBxMrEgGqQuBRlp-dt2FCOs7gwlZVgBl9Jvew/exec"
+URL_CSV_LISTA_ACERVOS = "https://docs.google.com/spreadsheets/d/1g8xnMOtDhhfN28s8MGAaKC5C2bPQ5FwHd4l-ksY4yNk/export?format=csv&sheet=Lista_Acervos"
+
+# ==========================================
+# ⚙️ FUNÇÃO AUXILIAR: CARREGAR ACERVOS EXPANDIDOS
+# ==========================================
+def carregar_acervos_novos():
+    """Lê a lista de abas/acervos customizados adicionados dinamicamente na planilha central"""
+    try:
+        conector = "&" if "?" in URL_CSV_LISTA_ACERVOS else "?"
+        url_dinamica = f"{URL_CSV_LISTA_ACERVOS}{conector}cachebuster={int(time.time())}"
+        resposta = requests.get(url_dinamica, timeout=10)
+        if resposta.status_code == 200:
+            df = pd.read_csv(url_dinamica)
+            if not df.empty:
+                df.columns = [str(c).strip() for c in df.columns]
+                col_nome = [c for c in df.columns if "nome" in c.lower() or "acervo" in c.lower()]
+                if col_nome:
+                    return df[col_nome[0]].dropna().astype(str).str.strip().tolist()
+    except:
+        pass
+    return []
+
 # ==========================================
 # 📧 FUNÇÃO DE NOTIFICAÇÃO POR E-MAIL
 # ==========================================
@@ -163,7 +187,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e salvo na planilha!
+Um novo lote de músicas foi processado e saved na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -255,6 +279,16 @@ def inicializar_acervos(forcar_recarga=False):
             df_jessica_app = puxar_dados_do_google(URL_JESSICA_APP_CSV, "Jéssica")
             
             lista_dfs = [df_som_pro, df_tulio_pro, df_jessica_pro, df_som_app, df_tulio_app, df_jessica_app]
+            
+            # --- EXTENSÃO: ACESSAR ABAS DINÂMICAS DA PLANILHA CENTRAL ---
+            novos_acervos = carregar_acervos_novos()
+            id_planilha_central = "1g8xnMOtDhhfN28s8MGAaKC5C2bPQ5FwHd4l-ksY4yNk"
+            for acervo in novos_acervos:
+                url_acervo = f"https://docs.google.com/spreadsheets/d/{id_planilha_central}/export?format=csv&sheet={acervo}"
+                df_acervo = puxar_dados_do_google(url_acervo, acervo)
+                if not df_acervo.empty:
+                    lista_dfs.append(df_acervo)
+            
             dfs = [df for df in lista_dfs if not df.empty]
             
             if dfs:
@@ -394,7 +428,7 @@ with st.sidebar:
     
     opcao = st.radio(
         "MENU DE NAVEGAÇÃO",
-        ["🔍 Painel Principal", "📂 Ver Todo o Acervo", "💿 Inserir Novo Lote", "📸 Roteiro Instagram"],
+        ["🔍 Painel Principal", "📂 Ver Todo o Acervo", "💿 Inserir Novo Lote", "📸 Roteiro Instagram", "⚙️ Expandir Acervos"],
         label_visibility="collapsed"
     )
     
@@ -402,7 +436,7 @@ with st.sidebar:
     if st.button("🔄 Sincronizar Bases", use_container_width=True):
         inicializar_acervos(forcar_recarga=True)
         st.rerun()
-    st.caption("Desenvolvido para Gestão Interna • v1.6")
+    st.caption("Desenvolvido para Gestão Interna • v1.6+")
 
 # ==========================================
 # 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD)
@@ -460,7 +494,11 @@ elif opcao == "📂 Ver Todo o Acervo":
     st.markdown("<h1 style='color: #ffffff;'>📋 Exploração de Dados</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #cbd5e1;'>Filtre e visualize as tabelas brutas diretamente do ecossistema Google Sheets.</p>", unsafe_allow_html=True)
     
-    filtro_banco = st.selectbox("Selecione a Base Alvo:", ["Todos os Acervos Juntos", "Apenas Túlio", "Apenas Jéssica", "Apenas Som da Ilha"])
+    opcoes_filtro = ["Todos os Acervos Juntos", "Apenas Túlio", "Apenas Jéssica", "Apenas Som da Ilha"]
+    novos_acervos = carregar_acervos_novos()
+    opcoes_filtro.extend([f"Apenas {a}" for a in novos_acervos])
+    
+    filtro_banco = st.selectbox("Selecione a Base Alvo:", opcoes_filtro)
     df_exibir = st.session_state["banco_completo"]
     
     if not df_exibir.empty:
@@ -470,6 +508,9 @@ elif opcao == "📂 Ver Todo o Acervo":
             df_exibir = df_exibir[df_exibir["Acervo Origem"] == "Jéssica"]
         elif filtro_banco == "Apenas Som da Ilha":
             df_exibir = df_exibir[df_exibir["Acervo Origem"] == "Som da Ilha"]
+        elif filtro_banco.startswith("Apenas "):
+            nome_filtro_acervo = filtro_banco.replace("Apenas ", "")
+            df_exibir = df_exibir[df_exibir["Acervo Origem"] == nome_filtro_acervo]
             
         st.dataframe(df_exibir, use_container_width=True)
 
@@ -481,7 +522,6 @@ elif opcao == "💿 Inserir Novo Lote":
     st.markdown("<p style='color: #cbd5e1;'>Insira suas linhas de arquivos de áudio. O motor fará o desmembramento técnico padronizado.</p>", unsafe_allow_html=True)
 
     with st.container(border=True):
-        # Card de instrução para novos usuários do painel
         st.info("💡 **Dica Prática:** Selecione todas as músicas que deseja cadastrar no seu computador, clique com o botão direito do mouse, clique em **'Copiar como caminho'** (ou 'Copy as path') e cole diretamente na caixa de texto abaixo.")
         
         texto_bruto = st.text_area("Cole as linhas aqui:", height=150, placeholder="Ex: Artista - Nome da Musica - MP3 - 2024")
@@ -512,7 +552,12 @@ elif opcao == "💿 Inserir Novo Lote":
         with st.expander("📥 Configurações de Postagem Automática (Geral)", expanded=True):
             col_a, col_b = st.columns(2)
             u_nome_g = col_a.text_input("Nome do Operador:", key="usr_g", placeholder="Campo Obrigatório").strip()
-            destino_geral = col_b.selectbox("Planilha de Destino:", ["Escolha uma opção...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"], key="dest_g")
+            
+            # INJEÇÃO DINÂMICA DOS NOVOS ACERVOS CRIADOS NA SELEÇÃO
+            opcoes_destino = ["Escolha uma opção...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"]
+            novos_acervos = carregar_acervos_novos()
+            opcoes_destino.extend(novos_acervos)
+            destino_geral = col_b.selectbox("Planilha de Destino:", opcoes_destino, key="dest_g")
             
             lista_duplicadas_g = []
             if "banco_completo" in st.session_state and not st.session_state["banco_completo"].empty:
@@ -529,9 +574,18 @@ elif opcao == "💿 Inserir Novo Lote":
             bloquear_envio_g = bool(lista_duplicadas_g) or not u_nome_g or destino_geral == "Escolha uma opção..."
 
             if st.button("Enviar Lote para Nuvem 💾", key="save_g_btn", disabled=bloquear_envio_g, type="primary"):
-                url_webhook = WEBHOOK_TULIO if "Túlio" in destino_geral else WEBHOOK_JESSICA
+                # Roteamento Inteligente Seguro
+                if "Túlio" in destino_geral:
+                    url_webhook = WEBHOOK_TULIO
+                    is_expansao = False
+                elif "Jéssica" in destino_geral:
+                    url_webhook = WEBHOOK_JESSICA
+                    is_expansao = False
+                else:
+                    url_webhook = WEBHOOK_EXPANSAO_CENTRAL
+                    is_expansao = True
+                    
                 pacote_lote = []
-                
                 for _, r in df_editado_g.iterrows():
                     pacote_lote.append({
                         "usuario": u_nome_g, "musica": str(r.get("Música", "")), "artista": str(r.get("Artista", "")), 
@@ -541,8 +595,18 @@ elif opcao == "💿 Inserir Novo Lote":
                         "data_cadastro": str(r.get("Data Cadastro", "")), "participacoes": str(r.get("Participações", "")), "nome_arquivo": str(r.get("Nome do Arquivo", ""))
                     })
                 
+                # Formatação do Pacote com base no tipo de Destino para garantir total isolamento de abas
+                if is_expansao:
+                    pacote_final = {
+                        "acao": "salvar_musicas",
+                        "destino_aba": destino_geral,
+                        "musicas": pacote_lote
+                    }
+                else:
+                    pacote_final = pacote_lote
+                
                 with st.spinner("Despachando lote para os servidores do Google Sheets..."):
-                    sucesso, motivo = enviar_lote_completo_google(url_webhook, pacote_lote)
+                    sucesso, motivo = enviar_lote_completo_google(url_webhook, pacote_final)
                 
                 if sucesso:
                     enviar_notificacao_email(destino_geral, df_editado_g, u_nome_g)
@@ -643,3 +707,44 @@ elif opcao == "📸 Roteiro Instagram":
                     st.markdown("### 📋 Copiar Conteúdo Formatado")
                     st.text_area(label="Cópia rápida", value=texto_formatado, height=300, label_visibility="collapsed")
                     st.balloons()
+
+# ==========================================
+# ⚙️ ABA NOVA: EXPANDIR ACERVOS (FUNÇÃO EXTRA SOLICITADA)
+# ==========================================
+elif opcao == "⚙️ Expandir Acervos":
+    st.markdown("<h1 style='color: #ffffff;'>⚙️ Central de Expansão de Acervos</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #cbd5e1;'>Crie novas estruturas de acervos na nuvem de forma dinâmica. Cada acervo se tornará uma aba exclusiva e isolada na planilha central.</p>", unsafe_allow_html=True)
+    
+    with st.container(border=True):
+        st.subheader("🚀 Criar Novo Acervo Customizado")
+        novo_acervo_nome = st.text_input("Nome do Novo Acervo (Ex: Banco do Marcos):", placeholder="Digite o nome aqui...")
+        
+        if st.button("Criar Estrutura na Nuvem 🛠️", type="primary", use_container_width=True):
+            if novo_acervo_nome.strip():
+                nome_limpo = novo_acervo_nome.strip()
+                payload_criar = {"acao": "criar_acervo", "nome_acervo": nome_limpo}
+                
+                with st.spinner(f"Solicitando criação da aba '{nome_limpo}' via Webhook Central..."):
+                    try:
+                        r = requests.post(WEBHOOK_EXPANSAO_CENTRAL, json=payload_criar, headers={"Content-Type": "application/json"}, timeout=30)
+                        if r.status_code == 200:
+                            st.success(f"🎉 Acervo '{nome_limpo}' criado com sucesso na nuvem!")
+                            st.balloons()
+                            time.sleep(1.5)
+                            inicializar_acervos(forcar_recarga=True)
+                            st.rerun()
+                        else:
+                            st.error(f"Erro ao criar na nuvem. Status HTTP: {r.status_code}")
+                    except Exception as e:
+                        st.error(f"Erro de conexão com o servidor: {e}")
+            else:
+                st.warning("Por favor, digite um nome válido para o acervo.")
+                
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #ffffff;'>📂 Acervos Expandidos Ativos no Sistema</h3>", unsafe_allow_html=True)
+    acervos_ativos = carregar_acervos_novos()
+    if acervos_ativos:
+        for acer in acervos_ativos:
+            st.markdown(f"• **{acer}** — Integrado à Busca Geral, Filtros e Lotes.")
+    else:
+        st.info("Nenhum acervo dinâmico customizado foi gerado até o momento.")
