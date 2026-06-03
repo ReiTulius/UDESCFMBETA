@@ -112,17 +112,23 @@ EMAIL_ROBO_REMETENTE = "heytuliusradio@gmail.com"
 SENHA_ROBO_REMETENTE = "nvfxdrlzpkzbugao"
 EMAIL_DESTINATARIO_OFICIAL = "heytuliusmusic@gmail.com"
 
-# 📊 LINKS DE LEITURA DAS PLANILHAS CÓPIAS (DO APP) - LEGADO
+# 📊 LINKS DE LEITURA (PLANILHAS ORIGINAIS PRO) - RESTAURADOS
+URL_SOM_DA_ILHA_PRO = "https://docs.google.com/spreadsheets/d/1zw7RPhpuInL7JqSylB_zOMu5zaqO4KgnJ7sD2eoM6gs/export?format=csv"
+URL_TULIO_PRO = "https://docs.google.com/spreadsheets/d/16inPMqGCr50-MNJvwV1R4bykDgEGRwlxdbjWrlW6mfY/export?format=csv"
+URL_JESSICA_PRO = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
+URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/edit?usp=sharing"
+
+# 📊 LINKS DE LEITURA DAS PLANILHAS CÓPIAS (DO APP)
 URL_SOM_DA_ILHA_APP_CSV = "https://docs.google.com/spreadsheets/d/1HPirfRjmjZjG23x9kc9Y1zB9zhZv6_iOmB9DIZsCgNo/export?format=csv"
 URL_TULIO_APP_CSV = "https://docs.google.com/spreadsheets/d/1iVgHYv58Aknbf0Pa1V2gENWtWZVzkkghdT7vV4nKxTE/export?format=csv"
 URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
 
-# 🚀 WEBHOOKS DE ESCRITA (LOTE COMPLETO) - LEGADO
+# 🚀 WEBHOOKS DE ESCRITA (LOTE COMPLETO)
 WEBHOOK_SOM_DA_ILHA = "https://script.google.com/macros/s/AKfycbw1Rzkirio_e9qIqLziKCqFXCmYICaOTVHixIuRgV2WCLdo4pzN1OGQSFtpicrWxf_Z/exec"
 WEBHOOK_TULIO = "https://script.google.com/macros/s/AKfycbxR5g2pWU_2_ClapUxY5PWCnH-C9NBrmiT8F1wf0GoLm2KV9jAmMlOQLSGdWsLHNzqX/exec"
 WEBHOOK_JESSICA = "https://script.google.com/macros/s/AKfycbwGif0xdjbzvo82mvG1CnrKwt8jvp-OWwHCFv3_FTQNJtGxT7m15hZGeO3k7ryWl3E9uQ/exec"
 
-# ⚙️ CONEXÕES DA CENTRAL DE EXPANSÃO DE ACERVOS (CORRIGIDO PARA GVIZ)
+# ⚙️ CONEXÕES DA CENTRAL DE EXPANSÃO DE ACERVOS
 WEBHOOK_EXPANSAO_CENTRAL = "https://script.google.com/macros/s/AKfycbxpqOsTpw0PTG7Zk9WTn7KV1cW4TEIB2jBxMrEgGqQuBRlp-dt2FCOs7gwlZVgBl9Jvew/exec"
 URL_CSV_LISTA_ACERVOS = "https://docs.google.com/spreadsheets/d/1g8xnMOtDhhfN28s8MGAaKC5C2bPQ5FwHd4l-ksY4yNk/gviz/tq?tqx=out:csv&sheet=Lista_Acervos"
 
@@ -130,7 +136,7 @@ URL_CSV_LISTA_ACERVOS = "https://docs.google.com/spreadsheets/d/1g8xnMOtDhhfN28s
 # ⚙️ FUNÇÃO AUXILIAR: CARREGAR ACERVOS EXPANDIDOS
 # ==========================================
 def carregar_acervos_novos():
-    """Lê as abas usando o GVIZ (infalível contra problemas de cache do /export)"""
+    """Lê as abas usando o GVIZ"""
     try:
         url_dinamica = f"{URL_CSV_LISTA_ACERVOS}&cb={int(time.time())}"
         df = pd.read_csv(url_dinamica)
@@ -237,11 +243,17 @@ def inicializar_acervos(forcar_recarga=False):
     if "banco_completo" not in st.session_state or forcar_recarga:
         with st.spinner("Sincronizando acervos em tempo real..."):
             
+            # --- LENDO AS PLANILHAS PRO (ORIGINAIS RESTAURADAS) ---
+            df_som_pro = puxar_dados_do_google(URL_SOM_DA_ILHA_PRO, "Som da Ilha")
+            df_tulio_pro = puxar_dados_do_google(URL_TULIO_PRO, "Túlio")
+            df_jessica_pro = puxar_dados_do_google(URL_JESSICA_PRO, "Jéssica")
+            
+            # --- LENDO AS PLANILHAS APP (CÓPIAS) ---
             df_som_app = puxar_dados_do_google(URL_SOM_DA_ILHA_APP_CSV, "Som da Ilha")
             df_tulio_app = puxar_dados_do_google(URL_TULIO_APP_CSV, "Túlio")
             df_jessica_app = puxar_dados_do_google(URL_JESSICA_APP_CSV, "Jéssica")
             
-            lista_dfs = [df_som_app, df_tulio_app, df_jessica_app]
+            lista_dfs = [df_som_pro, df_tulio_pro, df_jessica_pro, df_som_app, df_tulio_app, df_jessica_app]
             
             # --- 🛠️ ACESSAR ABAS DINÂMICAS VIA GVIZ API ---
             novos_acervos = carregar_acervos_novos()
@@ -410,14 +422,13 @@ if opcao == "🔍 Painel Principal":
         # --- 🛠️ GERAÇÃO DINÂMICA DE CARTÕES DE MÉTRICAS ---
         metricas = [("📦 Banco Unificado", f"{len(df_total)} faixas")]
         
-        # Junta os legados aos novos acervos (O "Banco do Marcos" agora aparece aqui!)
+        # Junta os legados aos novos acervos
         acervos_para_contar = ["Som da Ilha", "Túlio", "Jéssica"] + carregar_acervos_novos()
         icones = {"Som da Ilha": "🌴", "Túlio": "🎙️", "Jéssica": "🎙️"}
         
         for acervo in acervos_para_contar:
             qtd = len(df_total[df_total["Acervo Origem"] == acervo])
             icone = icones.get(acervo, "📁")
-            # Deixa o nome esteticamente agradável: "Banco Túlio", "Banco do Marcos"
             nome_display = acervo if acervo.startswith("Banco") or acervo == "Som da Ilha" else f"Banco {acervo}"
             metricas.append((f"{icone} {nome_display}", f"{qtd} mscs"))
             
@@ -522,7 +533,7 @@ elif opcao == "💿 Inserir Novo Lote":
             col_a, col_b = st.columns(2)
             u_nome_g = col_a.text_input("Nome do Operador:", key="usr_g", placeholder="Campo Obrigatório").strip()
             
-            # Puxa as opções de destino, incluindo as recém criadas (Marcos)
+            # Puxa as opções de destino, incluindo as recém criadas
             opcoes_destino = ["Escolha uma opção...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"]
             novos_acervos = carregar_acervos_novos()
             opcoes_destino.extend(novos_acervos)
