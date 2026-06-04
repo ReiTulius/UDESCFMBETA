@@ -156,7 +156,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         linhas_musicas = []
         for _, linha in df_novas.iterrows():
             nome_arq = linha.get('Nome do Arquivo', '')
-            if not nome_arq and 'Música' in line:
+            if not nome_arq and 'Música' in linha:
                 nome_arq = f"{linha.get('Artista', 'Desconhecido')} - {linha.get('Música', 'Sem Nome')}"
             linhas_musicas.append(f"• {nome_arq}.mp3")
         lista_texto = "\n".join(linhas_musicas)
@@ -304,86 +304,85 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS (INTELIGENTE & CORRIGIDO)
+# 🛠️ PARSER DE LINHAS (ATUALIZADO & SEGURO)
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
     if not linha_original:
         return None
 
-    # 1. Limpar aspas que o Windows gera no "Copiar como caminho"
-    linha_original = linha_original.replace('"', '')
-
-    # 2. SEPARAR O CAMINHO DE PASTA DO NOME REAL DO ARQUIVO
-    # Se houver contrabarra (\), pegamos estritamente a última parte (o nome do arquivo)
-    if "\\" in linha_original:
-        linha_trabalho = linha_original.split("\\")[-1].strip()
-    else:
-        linha_trabalho = linha_original
-
-    # 3. Identificar se é música Catarinense (SC)
-    eh_sc = bool(re.search(r'-\s*sc\b', linha_trabalho, flags=re.IGNORECASE))
+    # 1. Identificar se é música Catarinense (SC) antes de limpar a string
+    eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
     
-    # Limpar a extensão do arquivo e marcações soltas de SC no final da string
+    # Limpezas primárias de aspas e extensões de áudio
+    linha_trabalho = linha_original.replace('"', '')
     linha_trabalho = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', linha_trabalho, flags=re.IGNORECASE).strip()
     linha_trabalho = re.sub(r'\s*-\s*sc\s*$', '', linha_trabalho, flags=re.IGNORECASE).strip()
+        
+    # Extrair estritamente o nome do arquivo se vier mascarado como caminho do Windows
+    if "\\" in linha_trabalho:
+        linha_trabalho = linha_trabalho.split("\\")[-1].strip()
 
     artista, participacao, musica, formato, ano, compositores = "", "", "", "", "", ""
-
-    # 4. CAPTURAR COMPOSITORES: (comp. Fulano) ou (compa Cicrano)
+    
+    # 2. SEPARAÇÃO INTELIGENTE: "Comp. de compilação" (Formato) vs "comp." (Compositor)
+    busca_compilacao = re.search(r'\(?(comp\. de compilação|compilação|compilacao)\)?', linha_trabalho, flags=re.IGNORECASE)
+    if busca_compilacao:
+        formato = "Comp. de compilação"
+        linha_trabalho = linha_trabalho.replace(busca_compilacao.group(0), "").strip()
+        
+    # 3. CAPTURA DE COMPOSITORES: (comp. Fulano) ou (compa Cicrano)
     padrao_comp = r'\((comp\.|compa)\s*([^)]+)\)'
     busca_comp = re.search(padrao_comp, linha_trabalho, flags=re.IGNORECASE)
     if busca_comp:
         compositores = busca_comp.group(2).strip()
-        # Removemos o bloco de compositores inteiro da string de trabalho para não atrapalhar o resto
-        linha_trabalho = linha_trabalho.replace(busca_comp.group(0), "").replace("  ", " ").strip()
+        linha_trabalho = linha_trabalho.replace(busca_comp.group(0), "").strip()
 
-    # 5. CAPTURAR PARTICIPAÇÕES SOLTAS: (part. Alguem), (parc. Alguem) ou part. Alguem sem parênteses
-    padrao_part = r'\(?(part\.|parc\.|part\s|parc\s)\s*([^)-]+)\)?'
+    # 4. CAPTURA DE PARTICIPAÇÕES LIVRES: "part.", "parc.", "part " ou "parc " (mesmo sem traço)
+    padrao_part = r'\s*\(?(part\.|parc\.|part\b|parc\b)\s*([^)-]+)\)?\s*'
     busca_part = re.search(padrao_part, linha_trabalho, flags=re.IGNORECASE)
     if busca_part:
-        participacao = busca_part.group(2).strip()
-        linha_trabalho = linha_trabalho.replace(busca_part.group(0), "").replace("  ", " ").strip()
+        participacao = busca_part.group(2).strip().strip('()').strip()
+        linha_trabalho = linha_trabalho.replace(busca_part.group(0), " ").strip()
 
-    # 6. QUEBRAR PELOS HÍFENS RESTANTES (" - ")
-    # Filtramos blocos vazios gerados por hífens duplicados ou remanescentes
+    # Limpeza de hífens órfãos ou duplicados gerados pelas extrações internas
+    linha_trabalho = re.sub(r'\s*-\s*-\s*', ' - ', linha_trabalho)
+    linha_trabalho = re.sub(r'\s+', ' ', linha_trabalho).strip().strip('-').strip()
+
+    # 5. DIVISÃO EFETIVA POR HÍFEN (" - ") para Artista e Música
     partes = [p.strip() for p in linha_trabalho.split(" - ") if p.strip()]
     
     if len(partes) >= 2:
         artista = partes[0]
         musica = partes[1]
         
-        # Elementos extras (Formato, Ano)
-        resto_partes = partes[2:]
-        for p in resto_partes:
-            # Se for número de 4 dígitos, assume-se Ano
-            if p.isdigit() and len(p) == 4:
-                ano = p
-            # Se contiver termos de compilação, vai explicitamente para formato
-            elif any(x in p.lower() for x in ["compilação", "compilacao", "comp.", "album", "álbum", "ep", "single", "live", "ao vivo"]):
-                formato = p
-            else:
-                if not formato:
-                    formato = p
+        # Se restarem blocos na linha, checamos se são Ano ou Formatos adicionais
+        if len(partes) > 2:
+            for p in partes[2:]:
+                if p.isdigit() and len(p) == 4:
+                    ano = p
+                else:
+                    if not formato:
+                        formato = p
     elif len(partes) == 1:
         musica = partes[0]
     else:
         musica = linha_trabalho
 
-    # 7. ENGENHARIA DE RECONSTRUÇÃO DO NOME DO ARQUIVO PADRONIZADO
+    # 6. ENGENHARIA DE RECONSTRUÇÃO DO NOME DO ARQUIVO PADRONIZADO
     part_str = f" - (part. {participacao})" if participacao else ""
     comp_str = f" (comp. {compositores})" if compositores else ""
     formato_str = f" - {formato}" if formato else ""
     ano_str = f" - {ano}" if ano else ""
     sc_str = " - SC" if eh_sc else ""
     
-    # Se tivermos artista definido, monta o padrão. Caso contrário, usa a música limpa.
-    if artista:
+    if artist:
         nome_arquivo_formatado = f"{artista}{part_str} - {musica}{comp_str}{formato_str}{ano_str}{sc_str}"
     else:
-        nome_arquivo_formatado = f"{musica}{comp_str}{formato_str}{ano_str}{sc_str}"
+        nome_arquivo_formatado = f"{musica}{part_str}{comp_str}{formato_str}{ano_str}{sc_str}"
         
-    nome_arquivo_formatado = re.sub(r'\s+', ' ', nome_arquivo_formatado).replace(" - - ", " - ").strip()
+    nome_arquivo_formatado = re.sub(r'\s*-\s*-\s*', ' - ', nome_arquivo_formatado)
+    nome_arquivo_formatado = re.sub(r'\s+', ' ', nome_arquivo_formatado).strip()
 
     fuso_brasilia = dt.timezone(dt.timedelta(hours=-3))
     data_hoje = datetime.now(fuso_brasilia).strftime("%d/%m/%Y")
@@ -468,7 +467,7 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
         
-        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA
+        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA (Com Data Cadastro Inclusa)
         st.markdown("<h3 style='font-size: 1.2em; color: #ffffff;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
         ultimas_cadastradas = df_total.tail(6).iloc[::-1]
         colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem", "Data Cadastro"] if c in ultimas_cadastradas.columns]
@@ -502,6 +501,7 @@ elif opcao == "💿 Inserir Novo Lote":
     st.markdown("<p style='color: #cbd5e1;'>Insira suas linhas de arquivos de áudio. O motor fará o desmembramento técnico padronizado.</p>", unsafe_allow_html=True)
 
     with st.container(border=True):
+        # Card de instrução para novos usuários do painel
         st.info("💡 **Dica Prática:** Selecione todas as músicas que deseja cadastrar no seu computador, clique com o botão direito do mouse, clique em **'Copiar como caminho'** (ou 'Copy as path') e cole diretamente na caixa de texto abaixo.")
         
         texto_bruto = st.text_area("Cole as linhas aqui:", height=150, placeholder="Ex: Artista - Nome da Musica - MP3 - 2024")
