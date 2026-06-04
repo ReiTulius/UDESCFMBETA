@@ -22,7 +22,7 @@ if "acervos_customizados" not in st.session_state:
 def injetar_css_premium():
     st.markdown("""
     <style>
-        /* Ocultar elementos padrão do Streamlit */
+        /* Ocultar elements padrão do Streamlit */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
@@ -167,7 +167,7 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         
         corpo = f"""Olá Túlio,
 
-Um novo lote de músicas foi processado e saved na planilha!
+Um novo lote de músicas foi processado e salvo na planilha!
 
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
@@ -191,24 +191,26 @@ Aviso automático do Painel de Controle Udesc FM."""
 # ==========================================
 # 🔄 LEITOR INTEGRADO DO ACERVO
 # ==========================================
-def converter_link_google(url):
-    if "docs.google.com/spreadsheets" in url:
-        id_planilha = url.split("/d/")[1].split("/")[0]
-        gid_part = ""
-        if "gid=" in url:
-            gid_part = "&gid=" + url.split("gid=")[1].split("&")[0]
-        return f"https://docs.google.com/spreadsheets/d/{id_planilha}/export?format=csv{gid_part}"
-    return url
-
 def puxar_dados_do_google(url, nome_acervo):
     try:
-        url_base = converter_link_google(url)
+        if "docs.google.com" in url and "/export" not in url:
+            if "/d/" in url:
+                id_planilha = url.split("/d/")[1].split("/")[0]
+                gid_part = ""
+                if "gid=" in url:
+                    gid_part = "&gid=" + url.split("gid=")[1].split("&")[0]
+                url_base = f"https://docs.google.com/spreadsheets/d/{id_planilha}/export?format=csv{gid_part}"
+            else:
+                url_base = url
+        else:
+            url_base = url
+
         conector = "&" if "?" in url_base else "?"
         url_dinamica = f"{url_base}{conector}cachebuster={int(time.time())}"
         
         resposta = requests.get(url_dinamica, timeout=10)
         if resposta.status_code != 200 or "html" in resposta.headers.get('Content-Type', '').lower():
-            st.sidebar.warning(f"⚠️ Planilha '{nome_acervo}' está privada ou inacessível.")
+            st.sidebar.warning(f"⚠️ Planilha '{nome_acervo}' está privada.")
             return pd.DataFrame()
 
         df = pd.read_csv(url_dinamica, sep=',', on_bad_lines='skip', encoding='utf-8')
@@ -286,6 +288,15 @@ def inicializar_acervos(forcar_recarga=False):
 
 inicializar_acervos()
 
+def converter_link_google(url):
+    if "docs.google.com/spreadsheets" in url:
+        id_planilha = url.split("/d/")[1].split("/")[0]
+        gid_part = ""
+        if "gid=" in url:
+            gid_part = "&gid=" + url.split("gid=")[1].split("&")[0]
+        return f"https://docs.google.com/spreadsheets/d/{id_planilha}/export?format=csv{gid_part}"
+    return url
+
 @st.cache_data(ttl=600)
 def carregar_banco_instagram(url):
     try:
@@ -307,7 +318,7 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS AJUSTADO (PRO)
+# 🛠️ PARSER DE LINHAS (PRESERVADO ORIGINAL)
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
@@ -316,7 +327,7 @@ def processar_linha_acervo_original(linha_bruta):
 
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
     linha_original = linha_original.replace('"', '')
-    linha_original = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', linha_original, flags=re.IGNORECASE).strip()
+    linha_original = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', inline := linha_original, flags=re.IGNORECASE).strip()
     linha_original = re.sub(r'\s*-\s*sc\s*$', '', linha_original, flags=re.IGNORECASE).strip()
         
     if "\\" in linha_original:
@@ -326,9 +337,8 @@ def processar_linha_acervo_original(linha_bruta):
 
     artista, participacao, musica, formato, ano, compositores = "", "", "", "", "", ""
     
-    # 🔍 1. COMPOSITOR: Se está dentro de parênteses (comp. Nome Pessoa)
     padrao_comp = r'\((comp\.|compa)[^)]+\)'
-    busca_comp = re.search(padrao_comp, linha_trabalho, flags=re.IGNORECASE)
+    busca_comp = re.search(padrao_comp, offset := linha_trabalho, flags=re.IGNORECASE)
     if busca_comp:
         compositores_com_parentese = busca_comp.group(0)
         compositores = re.sub(r'\((comp\.|compa)\s*', '', compositores_com_parentese, flags=re.IGNORECASE).rstrip(')')
@@ -351,12 +361,7 @@ def processar_linha_acervo_original(linha_bruta):
             if indice_atual == len(partes) - 1 and partes[indice_atual].isdigit():
                 pass
             else:
-                # 🔍 2. COMPILAÇÃO: Fora de parênteses, posicionado isolado no fim da linha
-                item_formato = partes[indice_atual]
-                if item_formato.lower().strip() in ["comp", "comp.", "compilação", "compilacao"]:
-                    formato = "Compilação"
-                else:
-                    formato = item_formato
+                formato = partes[indice_atual]
                 indice_atual += 1
                 
         if len(partes) > indice_atual and partes[-1].isdigit():
@@ -428,19 +433,19 @@ if opcao == "🔍 Painel Principal":
         total_tulio = len(df_total[df_total["Acervo Origem"] == "Túlio"])
         total_jessica = len(df_total[df_total["Acervo Origem"] == "Jéssica"])
         
-        # Grid de Métricas Premium Estáticas
+        # Grid de Métricas Premium
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("📦 Banco Unificado", f"{total_musicas} faixas")
         col2.metric("🏝️ Som da Ilha", f"{total_sc} mscs")
         col3.metric("🎙️ Banco Túlio", f"{total_tulio} mscs")
         col4.metric("🎙️ Banco Jéssica", f"{total_jessica} mscs")
         
-        # Exibição elegante de Acervos Customizados Adicionais, se houver
-        origens_adicionais = [origem for origem in df_total["Acervo Origem"].unique() if origem not in ["Som da Ilha", "Túlio", "Jéssica"]]
-        if origens_adicionais:
-            lista_tags = [f"<b>{o}</b> ({len(df_total[df_total['Acervo Origem'] == o])} mscs)" for o in origens_adicionais]
-            st.markdown(f"<p style='color: #cbd5e1; font-size: 0.95em; background: #1e293b; padding: 10px; border-radius: 8px; border: 1px solid #334155;'>➕ <b>Novos Acervos Integrados:</b> " + " | ".join(lista_tags) + "</p>", unsafe_allow_html=True)
-            
+        # Exibição analítica de Acervos Customizados adicionais no Painel
+        origens_custom = [o for o in df_total["Acervo Origem"].unique() if o not in ["Som da Ilha", "Túlio", "Jéssica"]]
+        if origens_custom:
+            tags = [f"<b>{o}</b> ({len(df_total[df_total['Acervo Origem'] == o])} mscs)" for o in origens_custom]
+            st.markdown("<p style='color: #cbd5e1; font-size: 0.95em; background: #1e293b; padding: 10px; border-radius: 8px; border: 1px solid #334155; margin-top: 15px;'>➕ <b>Novas Bases Integradas:</b> " + " | ".join(tags) + "</p>", unsafe_allow_html=True)
+        
         st.markdown("<br>", unsafe_allow_html=True)
         
         # --- MECANISMO DE BUSCA INTELIGENTE ---
@@ -462,9 +467,9 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
         
-        # 📅 SEÇÃO DOS MAIS RECENTES (ÚLTIMOS ADICIONADOS DO BANCO)
+        # SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ABAIXO DA BUSCA (Atualizado para trazer os mais recentes de todas as planilhas lidas)
         st.markdown("<h3 style='font-size: 1.2em; color: #ffffff;'>📅 Adicionadas Recentemente no Acervo (Mais Recentes)</h3>", unsafe_allow_html=True)
-        ultimas_cadastradas = df_total.tail(8).iloc[::-1]  # Pega os últimos adicionados e reverte a ordem
+        ultimas_cadastradas = df_total.tail(8).iloc[::-1]
         colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem", "Data Cadastro"] if c in ultimas_cadastradas.columns]
         st.dataframe(ultimas_cadastradas[colunas_exibicao], use_container_width=True, hide_index=True)
 
@@ -503,9 +508,9 @@ elif opcao == "💿 Inserir Novo Lote":
     st.markdown("<p style='color: #cbd5e1;'>Insira suas linhas de arquivos de áudio. O motor fará o desmembramento técnico padronizado.</p>", unsafe_allow_html=True)
 
     with st.container(border=True):
-        st.info("💡 **Dica Prática:** Selecione todas as músicas que deseja cadastrar no seu computador, clique com o botão direito, selecione **'Copiar como caminho'** e cole diretamente abaixo.")
+        st.info("💡 **Dica Prática:** Selecione todas as músicas que deseja cadastrar no seu computador, clique com o botão direito do mouse, clique em **'Copiar como caminho'** (ou 'Copy as path') e cole diretamente na caixa de texto abaixo.")
         
-        texto_bruto = st.text_area("Cole as linhas aqui:", height=150, placeholder="Ex: Artista - Nome da Musica - MP3 - 2024\nEx2: Artista - Musica - comp. - 2026")
+        texto_bruto = st.text_area("Cole as linhas aqui:", height=150, placeholder="Ex: Artista - Nome da Musica - MP3 - 2024")
         if st.button("Executar Engenharia de Linhas ⚡", type="primary", use_container_width=True):
             if texto_bruto:
                 linhas = texto_bruto.split('\n')
@@ -534,7 +539,6 @@ elif opcao == "💿 Inserir Novo Lote":
             col_a, col_b = st.columns(2)
             u_nome_g = col_a.text_input("Nome do Operador:", key="usr_g", placeholder="Campo Obrigatório").strip()
             
-            # Popula dinamicamente os destinos incluindo acervos customizados que possuam webhook
             opcoes_destino = ["Escolha uma opção...", "Planilha Túlio (Ponte)", "Planilha Jéssica (Direto)"]
             for ac in st.session_state["acervos_customizados"]:
                 if ac.get("webhook"):
@@ -642,44 +646,42 @@ elif opcao == "💿 Inserir Novo Lote":
 # ⚙️ ABA: CRIAR / CADASTRAR NOVO ACERVO
 # ==========================================
 elif opcao == "⚙️ Criar Novo Acervo":
-    st.markdown("<h1 style='color: #ffffff;'>⚙️ Criação de Novos Acervos do Ecossistema</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: #ffffff;'>⚙️ Criar Novo Acervo</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #cbd5e1;'>Cadastre novas fontes de planilhas dinâmicas para o portal ler e processar no banco de dados.</p>", unsafe_allow_html=True)
     
     with st.container(border=True):
         st.markdown("<h4 style='color: #38bdf8; margin-top:0;'>Formulário de Homologação</h4>", unsafe_allow_html=True)
         
-        # 🔒 EXIGÊNCIA DE COLOCAR O NOME PARA PODER CRIAR NOVOS ACERVOS
+        # Trava de Segurança: Nome do operador obrigatório para criar novos acervos
         nome_operador_acervo = st.text_input("👤 Nome do Operador Responsável (Obrigatório):", placeholder="Digite seu nome completo...")
         nome_novo_acervo = st.text_input("📍 Nome Identificador do Acervo:", placeholder="Ex: Acervo MPB Retrô, Coletânea Internacional")
-        url_nova_planilha = st.text_input("🔗 Link da Planilha Google Sheets (Visualização Pública):", placeholder="https://docs.google.com/spreadsheets/d/...")
+        url_nova_planilha = st.text_input("🔗 Link da Planilha Google Sheets:", placeholder="https://docs.google.com/spreadsheets/d/...")
         url_novo_webhook = st.text_input("🚀 Link do Webhook de Escrita / Google Apps Script (Opcional):", placeholder="https://script.google.com/macros/s/...")
         
-        # O botão fica inativo se as informações principais ou o nome do operador estiverem vazios
+        # Validação ativa do botão de salvar
         trava_cadastro = not nome_operador_acervo.strip() or not nome_novo_acervo.strip() or not url_nova_planilha.strip()
         
         if st.button("Gravar e Sincronizar Novo Acervo 💾", type="primary", disabled=trava_cadastro):
             link_convertido = converter_link_google(url_nova_planilha.strip())
             
-            # Adiciona ao session_state para manter ativo na navegação da sessão
             st.session_state["acervos_customizados"].append({
                 "nome": nome_novo_acervo.strip(),
                 "url": link_convertido,
                 "webhook": url_novo_webhook.strip(),
                 "criado_por": nome_operador_acervo.strip(),
-                "data": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                "data_criacao": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             })
             
-            # Recarrega o banco acoplando a nova planilha recém cadastrada
+            # Força a recarga lendo também as novas planilhas adicionadas à sessão
             inicializar_acervos(forcar_recarga=True)
-            st.success(f"🎉 Acervo '{nome_novo_acervo}' integrado com sucesso no banco unificado da rádio!")
+            st.success(f"🎉 Acervo '{nome_novo_acervo}' integrado e sincronizado com sucesso!")
             time.sleep(1.0)
             st.rerun()
 
-    # Listagem de acervos incluídos na sessão corrente
     if st.session_state["acervos_customizados"]:
         st.markdown("<h3 style='color: #ffffff; margin-top: 20px;'>📋 Acervos Adicionados nesta Sessão</h3>", unsafe_allow_html=True)
         df_historico_acervos = pd.DataFrame(st.session_state["acervos_customizados"])
-        st.dataframe(df_historico_acervos[["nome", "criado_por", "data", "webhook"]], use_container_width=True, hide_index=True)
+        st.dataframe(df_historico_acervos[["nome", "criado_por", "data_criacao", "webhook"]], use_container_width=True, hide_index=True)
 
 # ==========================================
 # 📸 ABA: ROTEIRO INSTAGRAM
