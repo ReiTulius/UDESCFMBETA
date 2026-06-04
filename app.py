@@ -343,7 +343,7 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS
+# 🛠️ PARSER DE LINHAS (MOTOR DE ENGENHARIA AVANÇADO)
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
@@ -362,20 +362,63 @@ def processar_linha_acervo_original(linha_bruta):
 
     artista, participacao, musica, formato, ano, compositores = "", "", "", "", "", ""
     
-    padrao_comp = r'\((comp\.|compa)[^)]+\)'
-    busca_comp = re.search(padrao_comp, offset := linha_trabalho, flags=re.IGNORECASE)
-    if busca_comp:
-        compositores_com_parentese = busca_comp.group(0)
-        compositores = re.sub(r'\((comp\.|compa)\s*', '', compositores_com_parentese, flags=re.IGNORECASE).rstrip(')')
-        linha_trabalho = linha_trabalho.replace(compositores_com_parentese, "").replace("  ", " ")
+    # 1. Capturar Compositor explícito entre parênteses (Sempre Compositor)
+    comp_parens = re.search(r'\((comp\.|compa\.?)\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
+    if comp_parens:
+        compositores = comp_parens.group(2).strip()
+        linha_trabalho = linha_trabalho.replace(comp_parens.group(0), "")
 
-    partes = [p.strip() for p in linha_trabalho.split(" - ")]
+    # 2. Capturar Participação explícita entre parênteses (Sempre Participação)
+    part_parens = re.search(r'\((part\.|parc\.?)\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
+    if part_parens:
+        participacao = part_parens.group(2).strip()
+        linha_trabalho = linha_trabalho.replace(part_parens.group(0), "")
+
+    # 3. Capturar Participação Inline em qualquer parte da string (mesmo colado ao artista/música sem hífen)
+    part_inline = re.search(r'\b(part|parc)\.?\s+([^-)]+)', linha_trabalho, flags=re.IGNORECASE)
+    if part_inline and not participacao:
+        participacao = part_inline.group(2).strip()
+        linha_trabalho = linha_trabalho.replace(part_inline.group(0), "")
+
+    # 4. Capturar Compositor Inline e diferenciar do Formato "Comp. de Compilação"
+    comp_inline = re.search(r'\b(comp|compa)\.?\s+([^-]+)', linha_trabalho, flags=re.IGNORECASE)
+    if comp_inline and not compositores:
+        texto_comp = comp_inline.group(2).strip()
+        palavras_comuns_compilacao = [
+            'nacional', 'internacional', 'coletanea', 'coletânea', 'vários', 'varios', 
+            'compilação', 'compilacao', 'duplo', 'bonus', 'bônus', 'sertanejo', 'rock', 
+            'pop', 'pista', 'verão', 'verao', 'estúdio', 'estudio', 'remix'
+        ]
+        
+        # Heurística precisa: Se estiver vazio, contiver termos de coletânea ou NÃO começar com letra Maiúscula,
+        # é tratado como formato de Compilação. Caso contrário (letra Maiúscula), é Nome Próprio de Compositor.
+        is_compilacao = (
+            not texto_comp or 
+            texto_comp.lower() in palavras_comuns_compilacao or
+            any(p in texto_comp.lower() for p in ['nacional', 'internacional', 'coletânea', 'compilação', 'coletanea']) or
+            not texto_comp[0].isupper()
+        )
+        
+        if not is_compilacao:
+            compositores = texto_comp
+            linha_trabalho = linha_trabalho.replace(comp_inline.group(0), "")
+
+    # Limpeza refinada pós-remoções de tags dinâmicas
+    linha_trabalho = re.sub(r'\s*-\s*-\s*', ' - ', linha_trabalho)
+    linha_trabalho = re.sub(r'\s+', ' ', linha_trabalho).strip()
+    linha_trabalho = re.sub(r'^-\s*|\s*-$', '', linha_trabalho).strip()
+
+    # Processamento dos blocos posicionais restantes (Artista - Música - Formato - Ano)
+    partes = [p.strip() for p in linha_trabalho.split(" - ") if p.strip()]
     
     if len(partes) >= 2:
         artista = partes[0]
         indice_atual = 1
-        if "part." in partes[indice_atual].lower() or "part " in partes[indice_atual].lower():
-            participacao = re.sub(r'\(?part\.?\s*', '', partes[indice_atual], flags=re.IGNORECASE).rstrip(')')
+        
+        # Retrocompatibilidade de contingência posicional para part.
+        if indice_atual < len(partes) and ("part." in partes[indice_atual].lower() or "part " in partes[indice_atual].lower() or "parc." in partes[indice_atual].lower()):
+            if not participacao:
+                participacao = re.sub(r'\(?(part|parc)\.?\s*', '', partes[indice_atual], flags=re.IGNORECASE).rstrip(')')
             indice_atual += 1
             
         if indice_atual < len(partes):
@@ -392,8 +435,12 @@ def processar_linha_acervo_original(linha_bruta):
         if len(partes) > indice_atual and partes[-1].isdigit():
             ano = partes[-1]
     else:
-        musica = linha_trabalho
+        if partes:
+            musica = partes[0]
+        else:
+            musica = linha_original
 
+    # Montagem padronizada Premium do Nome do Arquivo Final
     part_str = f" - (part. {participacao})" if participacao else ""
     comp_str = f" (comp. {compositores})" if compositores else ""
     formato_str = f" - {formato}" if formato else ""
@@ -713,7 +760,7 @@ elif opcao == "📸 Roteiro Instagram":
                     st.balloons()
 
 # ==========================================
-# ⚙️ ABA NOVA: EXPANDIR ACERVOS (MODIFICADA BETA v1.9)
+# ⚙️ Central de Expansão de Acervos
 # ==========================================
 elif opcao == "⚙️ Expandir Acervos":
     st.markdown("<h1 style='color: #ffffff;'>⚙️ Central de Expansão de Acervos</h1>", unsafe_allow_html=True)
@@ -742,7 +789,6 @@ elif opcao == "⚙️ Expandir Acervos":
                 try:
                     r = requests.post(WEBHOOK_EXPANSAO_CENTRAL, json=payload_criar, headers={"Content-Type": "application/json"}, timeout=30)
                     if r.status_code == 200:
-                        # 📧 Dispara notificação por e-mail informando o criador
                         enviar_notificacao_criacao_acervo(nome_limpo, criador_limpo)
                         
                         st.success(f"🎉 Acervo '{nome_limpo}' criado com sucesso na nuvem e notificado ao gestor!")
