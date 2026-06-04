@@ -126,7 +126,7 @@ URL_JESSICA_APP_CSV = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBT
 # 🚀 WEBHOOKS DE ESCRITA (LOTE COMPLETO)
 WEBHOOK_SOM_DA_ILHA = "https://script.google.com/macros/s/AKfycbw1Rzkirio_e9qIqLziKCqFXCmYICaOTVHixIuRgV2WCLdo4pzN1OGQSFtpicrWxf_Z/exec"
 WEBHOOK_TULIO = "https://script.google.com/macros/s/AKfycbxR5g2pWU_2_ClapUxY5PWCnH-C9NBrmiT8F1wf0GoLm2KV9jAmMlOQLSGdWsLHNzqX/exec"
-WEBHOOK_JESSICA = "https://script.google.com/macros/s/AKfycbwGif0xdjbzvo82mvG1CnrKwt8jvp-OWwHCFv3_FTQNJtGxT7m15hZGeO3k7ryWl3E9uQ/exec"
+WEBHOOK_JESSICA = "https://script.google.com/macros/s/AKfycbGif0xdjbzvo82mvG1CnrKwt8jvp-OWwHCFv3_FTQNJtGxT7m15hZGeO3k7ryWl3E9uQ/exec"
 
 # ⚙️ CONEXÕES DA CENTRAL DE EXPANSÃO DE ACERVOS
 WEBHOOK_EXPANSAO_CENTRAL = "https://script.google.com/macros/s/AKfycbxpqOsTpw0PTG7Zk9WTn7KV1cW4TEIB2jBxMrEgGqQuBRlp-dt2FCOs7gwlZVgBl9Jvew/exec"
@@ -136,7 +136,6 @@ URL_CSV_LISTA_ACERVOS = "https://docs.google.com/spreadsheets/d/1g8xnMOtDhhfN28s
 # ⚙️ FUNÇÃO AUXILIAR: CARREGAR ACERVOS EXPANDIDOS
 # ==========================================
 def carregar_acervos_novos():
-    """Lê as abas usando o GVIZ"""
     try:
         url_dinamica = f"{URL_CSV_LISTA_ACERVOS}&cb={int(time.time())}"
         df = pd.read_csv(url_dinamica)
@@ -277,19 +276,16 @@ def inicializar_acervos(forcar_recarga=False):
     if "banco_completo" not in st.session_state or forcar_recarga:
         with st.spinner("Sincronizando acervos em tempo real..."):
             
-            # --- LENDO AS PLANILHAS PRO (ORIGINAIS RESTAURADAS) ---
             df_som_pro = puxar_dados_do_google(URL_SOM_DA_ILHA_PRO, "Som da Ilha")
             df_tulio_pro = puxar_dados_do_google(URL_TULIO_PRO, "Túlio")
             df_jessica_pro = puxar_dados_do_google(URL_JESSICA_PRO, "Jéssica")
             
-            # --- LENDO AS PLANILHAS APP (CÓPIAS) ---
             df_som_app = puxar_dados_do_google(URL_SOM_DA_ILHA_APP_CSV, "Som da Ilha")
             df_tulio_app = puxar_dados_do_google(URL_TULIO_APP_CSV, "Túlio")
             df_jessica_app = puxar_dados_do_google(URL_JESSICA_APP_CSV, "Jéssica")
             
             lista_dfs = [df_som_pro, df_tulio_pro, df_jessica_pro, df_som_app, df_tulio_app, df_jessica_app]
             
-            # --- 🛠️ ACESSAR ABAS DINÂMICAS VIA GVIZ API ---
             novos_acervos = carregar_acervos_novos()
             id_planilha_central = "1g8xnMOtDhhfN28s8MGAaKC5C2bPQ5FwHd4l-ksY4yNk"
             
@@ -343,7 +339,7 @@ def carregar_banco_instagram(url):
         return {}, f"Erro ao conectar com o Google Drive: {e}"
 
 # ==========================================
-# 🛠️ PARSER DE LINHAS (MOTOR DE ENGENHARIA AVANÇADO)
+# 🛠️ PARSER DE LINHAS (MOTOR DE ENGENHARIA REVISADO & INTELIGENTE)
 # ==========================================
 def processar_linha_acervo_original(linha_bruta):
     linha_original = linha_bruta.strip()
@@ -362,63 +358,71 @@ def processar_linha_acervo_original(linha_bruta):
 
     artista, participacao, musica, formato, ano, compositores = "", "", "", "", "", ""
     
-    # 1. Capturar Compositor explícito entre parênteses (Sempre Compositor)
-    comp_parens = re.search(r'\((comp\.|compa\.?)\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
+    # 1. CAPTURA DE PARTICIPAÇÃO (Parênteses primeiro, depois inline livre em qualquer ponto)
+    part_parens = re.search(r'\((part|parc)\.?\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
+    if part_parens:
+        participacao = part_parens.group(2).strip()
+        linha_trabalho = linha_trabalho.replace(part_parens.group(0), "")
+        
+    part_inline = re.search(r'\b(part|parc)\b\.?\s*([^-)]+)', linha_trabalho, flags=re.IGNORECASE)
+    if part_inline and not participacao:
+        participacao = part_inline.group(2).strip()
+        linha_trabalho = Registry_Clean = linha_trabalho.replace(part_inline.group(0), "")
+
+    # 2. CAPTURA DE COMPOSITOR EM PARÊNTESES (Sempre Compositor)
+    comp_parens = re.search(r'\((comp|compa)\.?\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
     if comp_parens:
         compositores = comp_parens.group(2).strip()
         linha_trabalho = linha_trabalho.replace(comp_parens.group(0), "")
 
-    # 2. Capturar Participação explícita entre parênteses (Sempre Participação)
-    part_parens = re.search(r'\((part\.|parc\.?)\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
-    if part_parens:
-        participacao = part_parens.group(2).strip()
-        linha_trabalho = linha_trabalho.replace(part_parens.group(0), "")
-
-    # 3. Capturar Participação Inline em qualquer parte da string (mesmo colado ao artista/música sem hífen)
-    part_inline = re.search(r'\b(part|parc)\.?\s+([^-)]+)', linha_trabalho, flags=re.IGNORECASE)
-    if part_inline and not participacao:
-        participacao = part_inline.group(2).strip()
-        linha_trabalho = linha_trabalho.replace(part_inline.group(0), "")
-
-    # 4. Capturar Compositor Inline e diferenciar do Formato "Comp. de Compilação"
-    comp_inline = re.search(r'\b(comp|compa)\.?\s+([^-]+)', linha_trabalho, flags=re.IGNORECASE)
-    if comp_inline and not compositores:
-        texto_comp = comp_inline.group(2).strip()
-        palavras_comuns_compilacao = [
+    # 3. CAPTURA DE COMPOSITOR INLINE VS COMPILAÇÃO (Análise de contexto sem depender da capitalização do C)
+    comp_match = re.search(r'\b(comp|compa)\b\.?\s*([^-)]*)', linha_trabalho, flags=re.IGNORECASE)
+    if comp_match and not compositores:
+        texto_capturado = comp_match.group(2).strip()
+        texto_completo_termo = comp_match.group(0)
+        
+        palavras_compilacao = [
             'nacional', 'internacional', 'coletanea', 'coletânea', 'vários', 'varios', 
             'compilação', 'compilacao', 'duplo', 'bonus', 'bônus', 'sertanejo', 'rock', 
-            'pop', 'pista', 'verão', 'verao', 'estúdio', 'estudio', 'remix'
+            'pop', 'pista', 'verão', 'verao', 'estúdio', 'estudio', 'remix', 'de compilação', 'de compilacao'
         ]
         
-        # Heurística precisa: Se estiver vazio, contiver termos de coletânea ou NÃO começar com letra Maiúscula,
-        # é tratado como formato de Compilação. Caso contrário (letra Maiúscula), é Nome Próprio de Compositor.
+        texto_capturado_lower = texto_capturado.lower()
+        texto_avaliar = re.sub(r'\s*\d{4}\s*$', '', texto_capturado_lower).strip()
+        
+        # Heurística contextual definitiva
         is_compilacao = (
-            not texto_comp or 
-            texto_comp.lower() in palavras_comuns_compilacao or
-            any(p in texto_comp.lower() for p in ['nacional', 'internacional', 'coletânea', 'compilação', 'coletanea']) or
-            not texto_comp[0].isupper()
+            not texto_avaliar or 
+            texto_avaliar.isdigit() or
+            any(p in texto_avaliar for p in palavras_compilacao)
         )
         
-        if not is_compilacao:
-            compositores = texto_comp
-            linha_trabalho = linha_trabalho.replace(comp_inline.group(0), "")
+        if is_compilacao:
+            if texto_avaliar in ['', 'de compilação', 'de compilacao']:
+                formato = "Comp. de compilação"
+            else:
+                formato = texto_completo_termo.strip()
+            # Removemos para que o split posicional isole corretamente o Artista - Música - Ano
+            linha_trabalho = linha_trabalho.replace(texto_completo_termo, "")
+        else:
+            # Não é palavra comum de coletânea nem está vazio -> É nome de pessoa/compositor!
+            compositores = texto_capturado
+            linha_trabalho = linha_trabalho.replace(texto_completo_termo, "")
 
-    # Limpeza refinada pós-remoções de tags dinâmicas
-    linha_trabalho = re.sub(r'\s*-\s*-\s*', ' - ', linha_trabalho)
+    # 4. LIMPEZA PROFUNDA DE HÍFENS DUPLOS OU SOBRANTES
+    for _ in range(3):
+        linha_trabalho = re.sub(r'\s*-\s*-\s*', ' - ', linha_trabalho)
+        linha_trabalho = re.sub(r'^-\s*|\s*-$', '', linha_trabalho).strip()
     linha_trabalho = re.sub(r'\s+', ' ', linha_trabalho).strip()
-    linha_trabalho = re.sub(r'^-\s*|\s*-$', '', linha_trabalho).strip()
 
-    # Processamento dos blocos posicionais restantes (Artista - Música - Formato - Ano)
+    # 5. PROCESSAMENTO POSICIONAL DOS ELEMENTOS RESTANTES (Artista - Música - Ano)
     partes = [p.strip() for p in linha_trabalho.split(" - ") if p.strip()]
     
     if len(partes) >= 2:
         artista = partes[0]
         indice_atual = 1
         
-        # Retrocompatibilidade de contingência posicional para part.
         if indice_atual < len(partes) and ("part." in partes[indice_atual].lower() or "part " in partes[indice_atual].lower() or "parc." in partes[indice_atual].lower()):
-            if not participacao:
-                participacao = re.sub(r'\(?(part|parc)\.?\s*', '', partes[indice_atual], flags=re.IGNORECASE).rstrip(')')
             indice_atual += 1
             
         if indice_atual < len(partes):
@@ -429,7 +433,8 @@ def processar_linha_acervo_original(linha_bruta):
             if indice_atual == len(partes) - 1 and partes[indice_atual].isdigit():
                 pass
             else:
-                formato = partes[indice_atual]
+                if not formato:
+                    formato = partes[indice_atual]
                 indice_atual += 1
                 
         if len(partes) > indice_atual and partes[-1].isdigit():
@@ -440,7 +445,7 @@ def processar_linha_acervo_original(linha_bruta):
         else:
             musica = linha_original
 
-    # Montagem padronizada Premium do Nome do Arquivo Final
+    # 6. MONTAGEM PADRONIZADA PREMIUM DO NOME DO ARQUIVO FINAL COM HÍFEN NA PART.
     part_str = f" - (part. {participacao})" if participacao else ""
     comp_str = f" (comp. {compositores})" if compositores else ""
     formato_str = f" - {formato}" if formato else ""
@@ -760,7 +765,7 @@ elif opcao == "📸 Roteiro Instagram":
                     st.balloons()
 
 # ==========================================
-# ⚙️ Central de Expansão de Acervos
+# ⚙️ CENTRAL DE EXPANSÃO DE ACERVOS
 # ==========================================
 elif opcao == "⚙️ Expandir Acervos":
     st.markdown("<h1 style='color: #ffffff;'>⚙️ Central de Expansão de Acervos</h1>", unsafe_allow_html=True)
