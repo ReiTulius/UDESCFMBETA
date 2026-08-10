@@ -112,7 +112,7 @@ EMAIL_ROBO_REMETENTE = "heytuliusradio@gmail.com"
 SENHA_ROBO_REMETENTE = "nvfxdrlzpkzbugao"
 EMAIL_DESTINATARIO_OFICIAL = "heytuliusmusic@gmail.com"
 
-# 📊 LINKS DE LEITURA (PLANILHAS ORIGINAIS PRO)
+# 📊 LINKS DE LEITURA (PLANILHAS ORIGINAIS PRO) - RESTAURADOS
 URL_SOM_DA_ILHA_PRO = "https://docs.google.com/spreadsheets/d/1zw7RPhpuInL7JqSylB_zOMu5zaqO4KgnJ7sD2eoM6gs/export?format=csv"
 URL_TULIO_PRO = "https://docs.google.com/spreadsheets/d/16inPMqGCr50-MNJvwV1R4bykDgEGRwlxdbjWrlW6mfY/export?format=csv"
 URL_JESSICA_PRO = "https://docs.google.com/spreadsheets/d/1MQ7OcghWNTZwaYVBTmZlMojYTXZMOe5vT1px5VALpS0/export?format=csv"
@@ -152,7 +152,7 @@ def carregar_acervos_novos():
     return []
 
 # ==========================================
-# 📧 FUNÇÕES DE NOTIFICAÇÃO POR E-MAIL
+# 📧 FUNÇÃO DE NOTIFICAÇÃO POR E-MAIL
 # ==========================================
 def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
     if "@" not in EMAIL_ROBO_REMETENTE or "@" not in EMAIL_DESTINATARIO_OFICIAL:
@@ -184,40 +184,6 @@ Um novo lote de músicas foi processado e salvo na planilha!
 
 🎵 Músicas Cadastradas ({len(df_novas)} itens):
 {lista_texto}
-
----
-Aviso automático do Painel de Controle Udesc FM."""
-        
-        msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(EMAIL_ROBO_REMETENTE, SENHA_ROBO_REMETENTE)
-        server.sendmail(EMAIL_ROBO_REMETENTE, EMAIL_DESTINATARIO_OFICIAL, msg.as_string())
-        server.quit()
-    except:
-        pass
-
-def enviar_notificacao_criacao_acervo(nome_acervo, nome_criador):
-    if "@" not in EMAIL_ROBO_REMETENTE or "@" not in EMAIL_DESTINATARIO_OFICIAL:
-        return
-    try:
-        fuso_brasilia = dt.timezone(dt.timedelta(hours=-3))
-        agora_local = datetime.now(fuso_brasilia)
-        
-        msg = MIMEMultipart()
-        msg['From'] = f"Painel Udesc FM <{EMAIL_ROBO_REMETENTE}>"
-        msg['To'] = EMAIL_DESTINATARIO_OFICIAL
-        msg['Subject'] = f"⚙️ Novo Acervo Criado: {nome_acervo}"
-        
-        corpo = f"""Olá Túlio,
-
-Um novo acervo (aba) foi criado com sucesso no sistema!
-
-👤 CRIADOR DO ACERVO: {nome_criador}
-📂 NOME DO ACERVO: {nome_acervo}
-📅 DATA/HORA: {agora_local.strftime('%d/%m/%Y %H:%M:%S')}
-
-O novo acervo já está integrado e disponível para buscas, filtros e inserção de novos lotes.
 
 ---
 Aviso automático do Painel de Controle Udesc FM."""
@@ -323,21 +289,31 @@ def inicializar_acervos(forcar_recarga=False):
 inicializar_acervos()
 
 @st.cache_data(ttl=600)
-def carregar_banco_instagram(url):
+def carregar_banco_instagram():
     try:
-        url_direta = url
+        url_direta = "https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/export?format=csv"
         df = pd.read_csv(url_direta, sep=',')
         df.columns = [str(c).strip().lower() for c in df.columns]
-        col_artista = df.columns[0]
-        col_insta = df.columns[1]
         
+        # Flexibilidade na busca das colunas
+        col_artista = [c for c in df.columns if 'artista' in str(c) or 'nome' in str(c)]
+        col_insta = [c for c in df.columns if 'insta' in str(c) or '@' in str(c) or 'rede' in str(c)]
+
+        if not col_artista or not col_insta:
+            return {}, "Colunas de Artista ou Instagram não encontradas."
+
+        c_art = col_artista[0]
+        c_ins = col_insta[0]
+
         banco = {}
-        for _, linha_planilha in df.iterrows():
-            nome_artista = str(linha_planilha[col_artista]).strip().lower()
-            insta = str(linha_planilha[col_insta]).strip() if pd.notna(linha_planilha[col_insta]) else ""
-            if insta.lower() in ["nan", "null", "none", "0"]:
-                insta = ""
-            banco[nome_artista] = insta
+        for _, row in df.iterrows():
+            nome_artista = str(row[c_art]).strip().lower()
+            insta = str(row[c_ins]).strip()
+            
+            if nome_artista and insta and insta.lower() not in ['nan', 'null', 'none', '0', '']:
+                if not insta.startswith('@') and not insta.startswith('http'):
+                    insta = f"@{insta}"
+                banco[nome_artista] = insta
         return banco, None
     except Exception as e:
         return {}, f"Erro ao conectar com o Google Drive: {e}"
@@ -350,34 +326,81 @@ def processar_linha_acervo_original(linha_bruta):
     if not linha_original:
         return None
 
+    # 1. Identificar se é música Catarinense (SC) antes de limpar a string
     eh_sc = bool(re.search(r'-\s*sc\b', linha_original, flags=re.IGNORECASE))
-    linha_original = linha_original.replace('"', '')
-    linha_original = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', linha_original, flags=re.IGNORECASE).strip()
-    linha_original = re.sub(r'\s*-\s*sc\s*$', '', linha_original, flags=re.IGNORECASE).strip()
+    
+    # Limpezas primárias de aspas e extensões de áudio
+    linha_trabalho = linha_original.replace('"', '')
+    linha_trabalho = re.sub(r'\.(mp3|wav|mpeg|mp4|m4a|flac|aac|ogg)$', '', linha_trabalho, flags=re.IGNORECASE).strip()
+    linha_trabalho = re.sub(r'\s*-\s*sc\s*$', '', linha_trabalho, flags=re.IGNORECASE).strip()
         
-    if "\\\\" in linha_original:
-        linha_trabalho = linha_original.split("\\\\")[-1]
-    else:
-        linha_trabalho = linha_original
+    # Extrair estritamente o nome do arquivo se vier mascarado como caminho do Windows
+    if "\\" in linha_trabalho:
+        linha_trabalho = linha_trabalho.split("\\")[-1].strip()
 
     artista, participacao, musica, formato, ano, compositores = "", "", "", "", "", ""
     
-    padrao_comp = r'\((comp\.|compa)[^)]+\)'
-    busca_comp = re.search(padrao_comp, offset := linha_trabalho, flags=re.IGNORECASE)
-    if busca_comp:
-        compositores_com_parentese = busca_comp.group(0)
-        compositores = re.sub(r'\((comp\.|compa)\s*', '', compositores_com_parentese, flags=re.IGNORECASE).rstrip(')')
-        linha_trabalho = linha_trabalho.replace(compositores_com_parentese, "").replace("  ", " ")
+    # 2. CAPTURA DE PARTICIPAÇÃO (Parênteses primeiro, depois inline livre em qualquer ponto)
+    part_parens = re.search(r'\((part\.|parc\.)\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
+    if part_parens:
+        participacao = part_parens.group(2).strip()
+        linha_trabalho = linha_trabalho.replace(part_parens.group(0), "")
+        
+    part_inline = re.search(r'\b(part\.|parc\.)\s+([^-)]+)', linha_trabalho, flags=re.IGNORECASE)
+    if part_inline and not participacao:
+        participacao = part_inline.group(2).strip()
+        linha_trabalho = linha_trabalho.replace(part_inline.group(0), "")
 
-    partes = [p.strip() for p in linha_trabalho.split(" - ")]
+    # 3. CAPTURA DE COMPOSITOR EM PARÊNTESES (Sempre Compositor)
+    comp_parens = re.search(r'\((comp\.|compa\.)\s*([^)]+)\)', linha_trabalho, flags=re.IGNORECASE)
+    if comp_parens:
+        compositores = comp_parens.group(2).strip()
+        linha_trabalho = linha_trabalho.replace(comp_parens.group(0), "")
+
+    # 4. CAPTURA DE COMPOSITOR INLINE VS COMPILAÇÃO (Análise de contexto)
+    comp_match = re.search(r'\b(comp\.|compa\.)\s*([^-)]*)', linha_trabalho, flags=re.IGNORECASE)
+    if comp_match and not compositores:
+        texto_capturado = comp_match.group(2).strip()
+        texto_completo_termo = comp_match.group(0)
+        
+        palavras_compilacao = [
+            'nacional', 'internacional', 'coletanea', 'coletânea', 'vários', 'varios', 
+            'compilação', 'compilacao', 'duplo', 'bonus', 'bônus', 'sertanejo', 'rock', 
+            'pop', 'pista', 'verão', 'verao', 'estúdio', 'estudio', 'remix', 'de compilação', 'de compilacao'
+        ]
+        
+        texto_capturado_lower = texto_capturado.lower()
+        texto_avaliar = re.sub(r'\s*\d{4}\s*$', '', texto_capturado_lower).strip()
+        
+        is_compilacao = (
+            not texto_avaliar or 
+            texto_avaliar.isdigit() or
+            any(p in texto_avaliar for p in palavras_compilacao)
+        )
+        
+        if is_compilacao:
+            if texto_avaliar in ['', 'de compilação', 'de compilacao']:
+                formato = "Comp. de compilação"
+            else:
+                formato = texto_completo_termo.strip()
+            linha_trabalho = linha_trabalho.replace(texto_completo_termo, "")
+        else:
+            compositores = texto_capturado
+            linha_trabalho = linha_trabalho.replace(texto_completo_termo, "")
+
+    # Limpeza profunda
+    for _ in range(3):
+        linha_trabalho = re.sub(r'\s*-\s*-\s*', ' - ', linha_trabalho)
+        linha_trabalho = re.sub(r'^-\s*|\s*-$', '', linha_trabalho).strip()
+    linha_trabalho = re.sub(r'\s+', ' ', linha_trabalho).strip()
+
+    # 5. PROCESSAMENTO POSICIONAL DOS ELEMENTOS RESTANTES (Artista - Música - Ano)
+    partes = [p.strip() for p in linha_trabalho.split(" - ") if p.strip()]
     
     if len(partes) >= 2:
         artista = partes[0]
         indice_atual = 1
-        if "part." in partes[indice_atual].lower() or "part " in partes[indice_atual].lower():
-            participacao = re.sub(r'\(?part\.?\s*', '', partes[indice_atual], flags=re.IGNORECASE).rstrip(')')
-            indice_atual += 1
-            
+        
         if indice_atual < len(partes):
             musica = partes[indice_atual]
             indice_atual += 1
@@ -386,13 +409,17 @@ def processar_linha_acervo_original(linha_bruta):
             if indice_atual == len(partes) - 1 and partes[indice_atual].isdigit():
                 pass
             else:
-                formato = partes[indice_atual]
+                if not formato:
+                    formato = partes[indice_atual]
                 indice_atual += 1
                 
         if len(partes) > indice_atual and partes[-1].isdigit():
             ano = partes[-1]
     else:
-        musica = linha_trabalho
+        if partes:
+            musica = partes[0]
+        else:
+            musica = linha_original
 
     part_str = f" - (part. {participacao})" if participacao else ""
     comp_str = f" (comp. {compositores})" if compositores else ""
@@ -441,7 +468,7 @@ with st.sidebar:
     if st.button("🔄 Sincronizar Bases", use_container_width=True):
         inicializar_acervos(forcar_recarga=True)
         st.rerun()
-    st.caption("Desenvolvido para Gestão Interna • v1.9")
+    st.caption("Desenvolvido para Gestão Interna • v1.8")
 
 # ==========================================
 # 🔍 ABA: PAINEL PRINCIPAL (DASHBOARD)
@@ -453,8 +480,10 @@ if opcao == "🔍 Painel Principal":
     df_total = st.session_state["banco_completo"]
     
     if not df_total.empty:
+        # --- 🛠️ GERAÇÃO DINÂMICA DE CARTÕES DE MÉTRICAS ---
         metricas = [("📦 Banco Unificado", f"{len(df_total)} faixas")]
         
+        # Junta os legados aos novos acervos
         acervos_para_contar = ["Som da Ilha", "Túlio", "Jéssica"] + carregar_acervos_novos()
         icones = {"Som da Ilha": "🌴", "Túlio": "🎙️", "Jéssica": "🎙️"}
         
@@ -464,6 +493,7 @@ if opcao == "🔍 Painel Principal":
             nome_display = acervo if acervo.startswith("Banco") or acervo == "Som da Ilha" else f"Banco {acervo}"
             metricas.append((f"{icone} {nome_display}", f"{qtd} mscs"))
             
+        # Distribui os cards infinitamente, de 4 em 4 por linha
         cols_per_row = 4
         for i in range(0, len(metricas), cols_per_row):
             cols = st.columns(cols_per_row)
@@ -473,6 +503,7 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
+        # --- MECANISMO DE BUSCA INTELIGENTE ---
         termo = st.text_input("🔍 Mecanismo de Busca Inteligente:", placeholder="Digite o nome da música, artista ou trecho do arquivo...")
         
         if termo:
@@ -491,6 +522,7 @@ if opcao == "🔍 Painel Principal":
         
         st.markdown("<hr style='border-color: #334155; margin: 20px 0;'>", unsafe_allow_html=True)
         
+        # --- SEÇÃO VISUAL: ADICIONADAS RECENTEMENTE ---
         st.markdown("<h3 style='font-size: 1.2em; color: #ffffff;'>📅 Adicionadas Recentemente no Acervo</h3>", unsafe_allow_html=True)
         ultimas_cadastradas = df_total.tail(6).iloc[::-1]
         colunas_exibicao = [c for c in ["Nome do Arquivo", "Acervo Origem", "Data Cadastro"] if c in ultimas_cadastradas.columns]
@@ -552,6 +584,7 @@ elif opcao == "💿 Inserir Novo Lote":
                 st.session_state["lote_sc_atual"] = pd.DataFrame(lista_sc) if lista_sc else pd.DataFrame()
                 st.toast("Linhas processadas e separadas com sucesso!")
 
+    # --- EDITE & GRAVE: LOTE GERAL ---
     if "lote_geral_atual" in st.session_state and not st.session_state["lote_geral_atual"].empty:
         st.markdown("<h3 style='color: #ffffff; margin-top: 20px;'>📝 Grade Editável: Lote Geral</h3>", unsafe_allow_html=True)
         df_editado_g = st.data_editor(st.session_state["lote_geral_atual"], use_container_width=True, key="edit_g_real")
@@ -676,7 +709,7 @@ elif opcao == "💿 Inserir Novo Lote":
 elif opcao == "📸 Roteiro Instagram":
     st.markdown("<h1 style='color: #ffffff;'>📸 Gerador de Roteiros para Redes Sociais</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #cbd5e1;'>Importe a listagem bruta do Sysrad para cruzar e anexar as marcações de Instagram cadastradas.</p>", unsafe_allow_html=True)
-    banco_instagram, erro = carregar_banco_instagram("https://docs.google.com/spreadsheets/d/1zkPm3F9W8QbOBhKvdV7jFCYqH-U8Qbru5w5TDyAHQLw/edit?usp=sharing")
+    banco_instagram, erro = carregar_banco_instagram()
     
     if erro: 
         st.error(erro)
@@ -695,15 +728,23 @@ elif opcao == "📸 Roteiro Instagram":
                         if not line or "Marcador" in line or "Total:" in line or "DescriçãoDuração" in line:
                             continue
                         line = re.sub(r'\s*-\s*\(?part\.?[^)]+\)?\s*', ' ', line, flags=re.IGNORECASE)
-                        line = re.sub(r'\(?part\.?[^)]+\)?\s*', ' ', line, flags=re.IGNORECASE)
+                        line = re.sub(r'\s*\(?part\.?[^)]+\)?\s*', ' ', line, flags=re.IGNORECASE)
                         if " - " in line:
                             partes = line.split(" - ", 1)
                             artista_original = partes[0].strip()
-                            artista_busca = artista_original.lower()
+                            artista_busca = artista_original.lower().strip()
                             resto = partes[1]
+                            
                             padrao_corte = r'(\(comp|\(compa|Álbum|EP|Single|\d{4}|\d{2}:\d{2})'
                             musica_limpa = re.split(padrao_corte, resto, flags=re.IGNORECASE)[0].strip().rstrip('-').strip()
+                            
                             instagram = banco_instagram.get(artista_busca, "")
+                            if not instagram:
+                                for k, v in banco_instagram.items():
+                                    if k in artista_busca or artista_busca in k:
+                                        instagram = v
+                                        break
+                                        
                             linha_final = f"{artista_original} - {musica_limpa} {instagram}".strip()
                             resultado.append(linha_final)
                     
@@ -713,7 +754,7 @@ elif opcao == "📸 Roteiro Instagram":
                     st.balloons()
 
 # ==========================================
-# ⚙️ ABA NOVA: EXPANDIR ACERVOS (MODIFICADA BETA v1.9)
+# ⚙️ ABA NOVA: EXPANDIR ACERVOS
 # ==========================================
 elif opcao == "⚙️ Expandir Acervos":
     st.markdown("<h1 style='color: #ffffff;'>⚙️ Central de Expansão de Acervos</h1>", unsafe_allow_html=True)
@@ -742,7 +783,6 @@ elif opcao == "⚙️ Expandir Acervos":
                 try:
                     r = requests.post(WEBHOOK_EXPANSAO_CENTRAL, json=payload_criar, headers={"Content-Type": "application/json"}, timeout=30)
                     if r.status_code == 200:
-                        # 📧 Dispara notificação por e-mail informando o criador
                         enviar_notificacao_criacao_acervo(nome_limpo, criador_limpo)
                         
                         st.success(f"🎉 Acervo '{nome_limpo}' criado com sucesso na nuvem e notificado ao gestor!")
