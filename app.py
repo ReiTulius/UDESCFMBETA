@@ -49,7 +49,7 @@ def injetar_css_premium():
             transform: translateX(4px);
         }
         div[data-testid="stRadio"] div[role="radiogroup"] [data-checked="true"] > label {
-            background-color: #0284c7 !important; 
+            background-color: #0284c7 !important;
             border-color: #38bdf8 !important;
             font-weight: bold !important;
         }
@@ -149,7 +149,9 @@ def carregar_acervos_novos():
             else:
                 return df.iloc[:, 0].dropna().astype(str).str.strip().tolist()
     except Exception as e:
-        pass
+        # Melhoria de Tratamento de Erros Visível
+        st.error(f"Falha ao conectar com a Central de Acervos: {str(e)}")
+        st.toast("⚠️ Verifique a conexão com o Google Sheets.", icon="⚠️")
     return []
 
 # ==========================================
@@ -178,7 +180,6 @@ def enviar_notificacao_email(nome_acervo, df_novas, nome_usuario):
         corpo = f"""Olá Túlio,
 
 Um novo lote de músicas foi processado e salvo na planilha!
-
 👤 QUEM CADASTROU: {nome_usuario}
 📍 DESTINO DO LOTE: {nome_acervo}
 📅 DATA/HORA: {agora_local.strftime('%d/%m/%Y %H:%M:%S')}
@@ -201,12 +202,11 @@ Aviso automático do Painel de Controle Udesc FM."""
 # ==========================================
 # 🔄 LEITOR INTEGRADO DO ACERVO
 # ==========================================
+# Melhoria de Otimização de Caching 
+@st.cache_data(ttl=300)
 def puxar_dados_do_google(url, nome_acervo):
     try:
-        conector = "&" if "?" in url else "?"
-        url_dinamica = f"{url}{conector}cachebuster={int(time.time())}"
-        
-        df = pd.read_csv(url_dinamica, sep=',', on_bad_lines='skip', encoding='utf-8')
+        df = pd.read_csv(url, sep=',', on_bad_lines='skip', encoding='utf-8')
         
         if not df.empty:
             df.dropna(how='all', inplace=True)
@@ -237,7 +237,7 @@ def puxar_dados_do_google(url, nome_acervo):
             df["Acervo Origem"] = nome_acervo
             return df
     except Exception as e:
-        pass
+        st.error(f"Erro ao carregar a planilha {nome_acervo}: {e}")
     return pd.DataFrame()
 
 def inicializar_acervos(forcar_recarga=False):
@@ -685,9 +685,18 @@ elif opcao == "📸 Roteiro Instagram":
                             linha_final = f"{artista_original} - {musica_limpa} {instagram}".strip()
                             resultado.append(linha_final)
                     
+                    # Melhoria de Exportação 1-Click
                     texto_formatado = "\n".join(resultado)
-                    st.markdown("### 📋 Copiar Conteúdo Formatado")
-                    st.text_area(label="Cópia rápida", value=texto_formatado, height=300, label_visibility="collapsed")
+                    st.markdown("### 📋 Roteiro Pronto para Copiar")
+                    st.code(texto_formatado, language='markdown')
+                    
+                    st.download_button(
+                        label="💾 Baixar Roteiro em TXT",
+                        data=texto_formatado,
+                        file_name=f"roteiro_instagram_{datetime.now().strftime('%d_%m')}.txt",
+                        mime="text/plain"
+                    )
+                    
                     st.balloons()
 
 # ==========================================
